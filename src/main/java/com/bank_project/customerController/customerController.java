@@ -1,9 +1,8 @@
-package com.bank_project;
+package com.bank_project.customerController;
 
 import com.bank_project.custumerModel.Custumer;
 import com.bank_project.customerService.CustomerService;
 import jakarta.validation.Valid;
-import org.apache.coyote.Response;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;

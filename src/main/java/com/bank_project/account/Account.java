@@ -1,12 +1,16 @@
 package com.bank_project.account;
 
+import com.bank_project.custumer.Custumer;
+
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
-
 import jakarta.persistence.Id;
 
 import java.math.BigDecimal;
+
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 
 
 @Entity
@@ -26,6 +30,19 @@ public class Account {
     private String status;
 
 
+    @ManyToOne
+    @JoinColumn(name = "customer_id")
+
+    private Custumer customer;
+
+    public void setCustomer(Custumer customer) {
+        this.customer = customer;
+    }
+    public Custumer getCustomer (){
+        return  customer;
+    }
+
+    
 public  Account  (Long id, String accountNumber, BigDecimal balance,String accountType,String status ){
 
     this.id=id;

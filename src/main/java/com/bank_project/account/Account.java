@@ -26,7 +26,7 @@ public class Account {
     private String status;
 
 
-public  Account  (long id, String accountNumber, BigDecimal balance,String accountType,String status ){
+public  Account  (Long id, String accountNumber, BigDecimal balance,String accountType,String status ){
 
     this.id=id;
     this.accountNumber = accountNumber;

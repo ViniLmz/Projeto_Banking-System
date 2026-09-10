@@ -42,7 +42,7 @@ public class Account {
         return  customer;
     }
 
-    
+
 public  Account  (Long id, String accountNumber, BigDecimal balance,String accountType,String status ){
 
     this.id=id;

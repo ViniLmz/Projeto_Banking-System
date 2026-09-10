@@ -1,11 +1,14 @@
 package com.bank_project.custumer;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
+import com.bank_project.account.Account;
+import jakarta.persistence.*;
 
-import jakarta.persistence.Id;
 import jakarta.validation.constraints.NotEmpty;
+
+import java.util.List;
+
+
+
 
 @Entity
 public class Custumer {
@@ -19,6 +22,8 @@ public class Custumer {
     private String email;
     private String cpf;
 
+    @OneToMany(mappedBy = "customer")
+    private List<Account> accounts;
 
     public Custumer (Long id, String name, String cpf, String email) {
         this.id = id;
@@ -64,3 +69,4 @@ public class Custumer {
     }
 
 }
+

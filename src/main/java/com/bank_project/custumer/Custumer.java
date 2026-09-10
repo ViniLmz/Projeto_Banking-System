@@ -1,4 +1,4 @@
-package com.bank_project.custumerModel;
+package com.bank_project.custumer;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;

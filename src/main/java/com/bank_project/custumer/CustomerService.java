@@ -1,7 +1,5 @@
-package com.bank_project.customerService;
+package com.bank_project.custumer;
 
-import com.bank_project.custumerModel.Custumer;
-import com.bank_project.customerRepository.CustumerRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 

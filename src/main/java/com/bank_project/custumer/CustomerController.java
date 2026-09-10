@@ -10,22 +10,22 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/customers")
 
-public class customerController {
+public class CustomerController {
 
-    private final CustomerService customerService;
+    private final CustomerService CustomerController;
 
-    public customerController(CustomerService customerService) {
-        this.customerService = customerService;
+    public CustomerController(CustomerService customerService) {
+        this.CustomerController = customerService;
     }
 
     @GetMapping
     public ResponseEntity<List<Custumer>> getAll() {
-        return ResponseEntity.ok(customerService.findAll());
+        return ResponseEntity.ok(CustomerController.findAll());
     }
 
     @GetMapping("/{Id}")
     public ResponseEntity<Custumer> getById(@PathVariable Long Id) {
-        return customerService.findById(Id).
+        return CustomerController.findById(Id).
                 map(ResponseEntity::ok).
                 orElse(ResponseEntity.notFound().build());
     }
@@ -33,7 +33,7 @@ public class customerController {
     @PostMapping
 
     public ResponseEntity<Custumer> create(@Valid @RequestBody Custumer custumer) {
-        Custumer savedCustomer = customerService.save(custumer);
+        Custumer savedCustomer = CustomerController.save(custumer);
         return  ResponseEntity.status(HttpStatus.CREATED).body(savedCustomer);
     }
 
@@ -42,13 +42,13 @@ public class customerController {
        @PathVariable Long id,
        @Valid @RequestBody Custumer custumer){
 
-        Custumer updateCustomer = customerService.update(id, custumer);
+        Custumer updateCustomer = CustomerController.update(id, custumer);
         return ResponseEntity.ok(updateCustomer);
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
-        customerService.delete(id);
+        CustomerController.delete(id);
         return ResponseEntity.noContent().build();
     }
 

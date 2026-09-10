@@ -8,8 +8,6 @@ import jakarta.validation.constraints.NotEmpty;
 import java.util.List;
 
 
-
-
 @Entity
 public class Custumer {
 
@@ -24,6 +22,15 @@ public class Custumer {
 
     @OneToMany(mappedBy = "customer")
     private List<Account> accounts;
+
+    public List<Account> getAccounts() {
+        return accounts;
+    }
+
+    public void setAccounts(List<Account> accounts) {
+        this.accounts = accounts;
+    }
+
 
     public Custumer (Long id, String name, String cpf, String email) {
         this.id = id;

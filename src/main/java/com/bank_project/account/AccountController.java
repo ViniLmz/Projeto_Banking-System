@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/account")
+@RequestMapping("/api/accounts")
 
 public class AccountController {
 
@@ -32,10 +32,24 @@ public class AccountController {
     }
 
     @PostMapping
-    public ResponseEntity  <Account> create (@Valid @RequestBody Account account){
-      Account  accountSaved = accountService.save(account);
-      return  ResponseEntity.status(HttpStatus.CREATED).body(accountSaved);
+    public ResponseEntity<Account> create(@RequestBody AccountRequest request) {
+        Account accountSaved = accountService.save(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(accountSaved);
     }
+
+    @PostMapping ("/{id}/deposit")
+    public ResponseEntity  <Account> deposit  (@PathVariable Long id, @Valid @RequestBody TransactionRequest request) {
+        Account accountDeposit = accountService.deposit(id, request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(accountDeposit);
+    }
+
+
+    @PostMapping ("/{id}/withdraw")
+    public ResponseEntity  <Account> withdraw  (@PathVariable Long id, @Valid @RequestBody TransactionRequest request) {
+        Account accountWithdraw = accountService.withdraw(id, request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(accountWithdraw);
+    }
+
 
 
     @PutMapping ("/{id}")
@@ -43,6 +57,7 @@ public class AccountController {
        Account accountUpdated = accountService.update(id, account);
        return ResponseEntity.ok(accountUpdated);
     }
+
 
     @DeleteMapping ("/{id}")
     public ResponseEntity <Void> delete (@PathVariable Long id){

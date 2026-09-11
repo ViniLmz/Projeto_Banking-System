@@ -2,10 +2,12 @@ package com.bank_project.account;
 
 import com.bank_project.custumer.Custumer;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+
 
 import java.math.BigDecimal;
 
@@ -30,6 +32,7 @@ public class Account {
     private String status;
 
 
+    @JsonIgnore
     @ManyToOne
     @JoinColumn(name = "customer_id")
 
@@ -41,7 +44,6 @@ public class Account {
     public Custumer getCustomer (){
         return  customer;
     }
-
 
 public  Account  (Long id, String accountNumber, BigDecimal balance,String accountType,String status ){
 

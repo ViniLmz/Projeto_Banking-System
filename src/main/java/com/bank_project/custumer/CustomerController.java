@@ -1,9 +1,11 @@
 package com.bank_project.custumer;
 
+import com.bank_project.account.Account;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import com.bank_project.account.AccountRequest;
 
 import java.util.List;
 
@@ -36,6 +38,7 @@ public class CustomerController {
         Custumer savedCustomer = CustomerController.save(custumer);
         return  ResponseEntity.status(HttpStatus.CREATED).body(savedCustomer);
     }
+
 
     @PutMapping("/{id}")
     public ResponseEntity<Custumer> update(

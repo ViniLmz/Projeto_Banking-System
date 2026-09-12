@@ -4,6 +4,7 @@ import com.bank_project.custumer.Custumer;
 import com.bank_project.custumer.CustumerRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.bank_project.exception.ResourceNotFoundException;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -42,7 +43,7 @@ public class AccountService {
 
         if (request.customerId() != null) {
             Custumer custumer = custumerRepository.findById(request.customerId())
-                    .orElseThrow(() -> new RuntimeException("Customer not found with id: " + request.customerId()));
+                    .orElseThrow(() -> new ResourceNotFoundException("Customer not found with id: " + request.customerId()));
             account.setCustomer(custumer);
         }
 
@@ -59,7 +60,7 @@ public class AccountService {
             account.setId(id);
             return accountRepository.save(account);
         } else {
-            throw new RuntimeException("Account not found");
+            throw new ResourceNotFoundException("Account not found with id: " + id);
         }
     }
 
@@ -67,7 +68,7 @@ public class AccountService {
     public Account deposit(Long id, TransactionRequest request) {
 
         Account account = accountRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Account not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Account not found with id: " + id));
 
         account.setBalance(
                 account.getBalance().add(request.amount())
@@ -79,13 +80,14 @@ public class AccountService {
     public Account withdraw(Long id, TransactionRequest request) {
 
         Account account = accountRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Account not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Account not found with id: " + id));
         if (request.amount().compareTo(account.getBalance()) <= 0) {
             account.setBalance(
                     account.getBalance().subtract(request.amount())
             );
         } else {
             throw new RuntimeException("Insufficient balance");
+
         }
 
         return accountRepository.save(account);

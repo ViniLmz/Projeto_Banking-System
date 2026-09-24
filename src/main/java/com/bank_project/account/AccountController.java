@@ -32,7 +32,7 @@ public class AccountController {
     }
 
     @PostMapping
-    public ResponseEntity<Account> create(@RequestBody AccountRequest request) {
+    public ResponseEntity<Account> create(@RequestBody @Valid AccountRequest request) {
         Account accountSaved = accountService.save(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(accountSaved);
     }
@@ -40,22 +40,33 @@ public class AccountController {
     @PostMapping ("/{id}/deposit")
     public ResponseEntity  <Account> deposit  (@PathVariable Long id, @Valid @RequestBody TransactionRequest request) {
         Account accountDeposit = accountService.deposit(id, request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(accountDeposit);
+        return ResponseEntity.ok(accountDeposit);
     }
 
 
     @PostMapping ("/{id}/withdraw")
     public ResponseEntity  <Account> withdraw  (@PathVariable Long id, @Valid @RequestBody TransactionRequest request) {
         Account accountWithdraw = accountService.withdraw(id, request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(accountWithdraw);
+        return ResponseEntity.ok(accountWithdraw);
     }
 
 
 
     @PutMapping ("/{id}")
-    public ResponseEntity  <Account> update (@PathVariable Long id, @Valid @RequestBody Account account) {
-       Account accountUpdated = accountService.update(id, account);
+    public ResponseEntity  <Account> update (@PathVariable Long id, @Valid @RequestBody  AccountUpdateRequest request) {
+       Account accountUpdated = accountService.update(id, request);
        return ResponseEntity.ok(accountUpdated);
+    }
+
+    @PatchMapping("/{id}/status")
+    public ResponseEntity<Account> updateStatus(
+            @PathVariable Long id,
+            @RequestBody StatusRequest request) {
+
+        Account accountUpdated =
+                accountService.updateStatus(id, request.status());
+
+        return ResponseEntity.ok(accountUpdated);
     }
 
 

@@ -1,4 +1,6 @@
 package com.bank_project.account;
 
-public class AccountType {
+public enum AccountType {
+    CHECKING,
+    SAVINGS
 }

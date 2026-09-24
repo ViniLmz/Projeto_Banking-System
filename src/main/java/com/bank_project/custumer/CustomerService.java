@@ -1,5 +1,7 @@
 package com.bank_project.custumer;
 
+import com.bank_project.exception.CpfAlreadyExistsException;
+import com.bank_project.exception.ResourceNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,24 +30,40 @@ public class CustomerService {
     }
 
 
-    public Custumer save (Custumer custumer)
-    {
+    public Custumer save (Custumer custumer) {
+
+        if(custumerRepository.existsByCpf(custumer.getCpf())){
+            throw new CpfAlreadyExistsException("CPF already exists");
+        }
+
         return custumerRepository.save(custumer);
     }
 
     @Transactional
-    public void delete (Long Id)
-    {
-        custumerRepository.deleteById(Id);
+    public void delete(Long id) {
+
+        if (!custumerRepository.existsById(id)) {
+            throw new ResourceNotFoundException(
+                    "Customer not found with id: " + id
+            );
+        }
+
+        custumerRepository.deleteById(id);
     }
 
     @Transactional
-    public Custumer update (Long Id, Custumer custumer) {
-        if (custumerRepository.existsById(Id))
-        {
-            custumer.setId(Id);
-            return custumerRepository.save(custumer);
-        } else throw new RuntimeException("Customer not found");
+    public Custumer update(Long id, Custumer custumer) {
+
+        if (!custumerRepository.existsById(id)) {
+            throw new ResourceNotFoundException("Customer not found");
+        }
+
+        if (custumerRepository.existsByCpfAndIdNot(custumer.getCpf(), id)) {
+            throw new CpfAlreadyExistsException("CPF already exists");
+        }
+
+        custumer.setId(id);
+        return custumerRepository.save(custumer);
     }
 
 }

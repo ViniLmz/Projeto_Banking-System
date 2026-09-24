@@ -12,13 +12,11 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
+
 @Service
 public class AccountService {
 
-    @Mock
     private final AccountRepository accountRepository;
-
-    @Mock
     private final CustumerRepository custumerRepository;
 
 

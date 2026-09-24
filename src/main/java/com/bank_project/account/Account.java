@@ -3,16 +3,14 @@ package com.bank_project.account;
 import com.bank_project.custumer.Custumer;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
+import jakarta.persistence.*;
 
 
 import java.math.BigDecimal;
 
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.PositiveOrZero;
 
 
 @Entity
@@ -22,14 +20,20 @@ public class Account {
     @GeneratedValue(strategy = GenerationType.AUTO)
     private Long id;
 
-
+    @NotBlank
+    @Column(unique = true)
     private String accountNumber;
 
+
+    @NotNull
+    @PositiveOrZero
     private BigDecimal balance;
 
-    private String accountType;
+    @Enumerated(EnumType.STRING)
+    private AccountType accountType;
 
-    private String status;
+    @Enumerated(EnumType.STRING)
+    private AccountStatus status;
 
 
     @JsonIgnore
@@ -45,12 +49,12 @@ public class Account {
         return  customer;
     }
 
-public  Account  (Long id, String accountNumber, BigDecimal balance,String accountType,String status ){
+public  Account  (Long id, String accountNumber, BigDecimal balance,AccountType accountType,AccountStatus status ){
 
     this.id=id;
     this.accountNumber = accountNumber;
     this.balance = balance;
-    this.accountType =accountType;
+    this.accountType = accountType;
     this.status = status;
 }
 
@@ -83,26 +87,22 @@ public void setBalance (BigDecimal balance){
 public BigDecimal getBalance (){
     return  balance;
 
-}
-
-public void setAccountType (String accountType){
-    this.accountType = accountType;
-}
-
-public String getAccountType (){
-    return  accountType;
 
 }
+    public void setAccountType(AccountType accountType) {
+        this.accountType = accountType;
+    }
 
-public void setStatus(String status){
-    this.status = status;
+    public AccountType getAccountType() {
+        return accountType;
+    }
 
-}
+    public void setStatus(AccountStatus status) {
+        this.status = status;
+    }
 
-public String getStatus (){
-
-    return  status;
-}
-
+    public AccountStatus getStatus() {
+        return status;
+    }
 
 }

@@ -1,4 +1,6 @@
 package com.bank_project.account;
 
-public class AccountStatus {
+public enum AccountStatus {
+    ACTIVE  ,
+    BLOCKED
 }

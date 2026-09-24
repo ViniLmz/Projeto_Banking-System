@@ -1,4 +1,4 @@
 package com.bank_project.account;
 
-public class StatusRequest {
+public record StatusRequest(AccountStatus status) {
 }

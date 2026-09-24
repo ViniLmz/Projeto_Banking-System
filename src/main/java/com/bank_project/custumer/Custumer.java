@@ -3,7 +3,8 @@ package com.bank_project.custumer;
 import com.bank_project.account.Account;
 import jakarta.persistence.*;
 
-import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
 
 import java.util.List;
 
@@ -15,9 +16,15 @@ public class Custumer {
     @GeneratedValue(strategy = GenerationType.AUTO)
     private Long id;
 
-    @NotEmpty(message = "Please, enter the full name")
+    @NotBlank(message = "Please, enter the full name")
     private String name;
+
+    @NotBlank
+    @Email
     private String email;
+
+    @Column(unique=true)
+    @NotBlank
     private String cpf;
 
     @OneToMany(mappedBy = "customer")

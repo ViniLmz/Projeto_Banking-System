@@ -1,6 +1,7 @@
 package com.bank_project.account;
 
 import com.bank_project.custumer.CustumerRepository;
+import com.bank_project.exception.ResourceNotFoundException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -102,6 +103,45 @@ class AccountServiceTest {
                 BlockedAccountException.class,
                 () -> accountService.withdraw(1L, request)
         );
+    }
+
+    @Test
+    void testDepositAccountNotFound() {
+        when(accountRepository.findById(1l))
+                .thenReturn(Optional.empty());
+
+        TransactionRequest request = new TransactionRequest(new BigDecimal("500.00"));
+
+        assertThrows(ResourceNotFoundException.class, () -> accountService.deposit(1l, request));
+    }
+
+    @Test
+    void testWithdrawAccountNotFound() {
+
+        when(accountRepository.findById(1l))
+                .thenReturn(Optional.empty());
+
+        TransactionRequest request = new TransactionRequest(new BigDecimal("500.00"));
+
+        assertThrows(ResourceNotFoundException.class,
+                ()-> accountService.withdraw(1l, request));
+
+    }
+    @Test
+    void testWithdrawInsufficientBalance(){
+
+        Account account = new Account();
+        account.setId(1l);
+        account.setBalance(new BigDecimal("500.00"));
+        account.setStatus(AccountStatus.ACTIVE);
+
+        when(accountRepository.findById(1l))
+                .thenReturn(Optional.empty());
+
+        TransactionRequest request = new TransactionRequest(new BigDecimal("1000.00"));
+
+        assertThrows(ResourceNotFoundException.class,
+                ()-> accountService.withdraw(1l, request));
     }
 
 

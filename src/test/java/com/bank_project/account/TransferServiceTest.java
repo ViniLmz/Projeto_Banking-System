@@ -3,22 +3,27 @@ package com.bank_project.account;
 import com.bank_project.custumer.CustumerRepository;
 import com.bank_project.exception.BlockedAccountException;
 import com.bank_project.exception.InsufficientBalanceException;
+import com.bank_project.exception.ResourceNotFoundException;
 import com.bank_project.exception.SameAccountTransferException;
+import com.bank_project.transfer.Transfer;
 import com.bank_project.transfer.TransferRepository;
 import com.bank_project.transfer.TransferRequest;
 import com.bank_project.transfer.TransferService;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.verify;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import javax.swing.tree.TreeNode;
 import java.math.BigDecimal;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.when;
 
 
@@ -148,7 +153,238 @@ class TransferServiceTest  {
                 SameAccountTransferException.class,
                 ()-> transferService.transfer(request)
         );
+
+
+
+    }
+    @Test
+    void testTransferSourceAccountNotFound() {
+
+        when(accountRepository.findById(1L))
+                .thenReturn(Optional.empty());
+
+        TransferRequest request =
+                new TransferRequest(
+                        1L,
+                        2L,
+                        new BigDecimal("500.00")
+                );
+
+        assertThrows(
+                ResourceNotFoundException.class,
+                () -> transferService.transfer(request)
+        );
     }
 
+    @Test
+    void testTransferTargetAccountNotFound() {
 
-}
+        Account sourceAccount = new Account();
+        sourceAccount.setId(1L);
+        sourceAccount.setBalance(new BigDecimal("5000.00"));
+        sourceAccount.setStatus(AccountStatus.ACTIVE);
+
+        when(accountRepository.findById(1L))
+                .thenReturn(Optional.of(sourceAccount));
+
+        when(accountRepository.findById(2L))
+                .thenReturn(Optional.empty());
+
+        TransferRequest request =
+                new TransferRequest(
+                        1L,
+                        2L,
+                        new BigDecimal("500.00")
+                );
+
+        assertThrows(
+                ResourceNotFoundException.class,
+                () -> transferService.transfer(request)
+        );
+    }
+
+    @Test
+    void testTransferBlockedAccount(){
+        Account accountSource = new Account();
+        accountSource.setId(1l);
+        accountSource.setBalance(new BigDecimal("5000.00"));
+        accountSource.setStatus(AccountStatus.BLOCKED);
+
+        Account accountTarget  = new Account();
+        accountTarget.setId(2l);
+        accountTarget.setStatus(AccountStatus.ACTIVE);
+        accountTarget.setBalance(new BigDecimal("1000.00"));
+
+        when(accountRepository.findById(1l))
+                .thenReturn(Optional.of(accountSource));
+        when(accountRepository.findById(2l))
+                .thenReturn(Optional.of(accountTarget));
+
+        TransferRequest request = new TransferRequest(1L, 2L, new BigDecimal("500.00"));
+        assertThrows(BlockedAccountException.class,
+                ()-> transferService.transfer(request));
+
+
+    }
+
+    @Test
+    void testTransferSaved() {
+
+        Account sourceAccount = new Account();
+        sourceAccount.setId(1L);
+        sourceAccount.setBalance(new BigDecimal("5000.00"));
+        sourceAccount.setStatus(AccountStatus.ACTIVE);
+
+        Account targetAccount = new Account();
+        targetAccount.setId(2L);
+        targetAccount.setBalance(new BigDecimal("1000.00"));
+        targetAccount.setStatus(AccountStatus.ACTIVE);
+
+        when(accountRepository.findById(1L))
+                .thenReturn(Optional.of(sourceAccount));
+
+        when(accountRepository.findById(2L))
+                .thenReturn(Optional.of(targetAccount));
+
+        TransferRequest request =
+                new TransferRequest(
+                        1L,
+                        2L,
+                        new BigDecimal("500.00")
+                );
+
+        transferService.transfer(request);
+
+        verify(transferRepository).save(any());
+    }
+    @Test
+    void testTransferSavedWithCorrectData() {
+
+        Account sourceAccount = new Account();
+        sourceAccount.setId(1L);
+        sourceAccount.setBalance(new BigDecimal("5000.00"));
+        sourceAccount.setStatus(AccountStatus.ACTIVE);
+
+        Account targetAccount = new Account();
+        targetAccount.setId(2L);
+        targetAccount.setBalance(new BigDecimal("1000.00"));
+        targetAccount.setStatus(AccountStatus.ACTIVE);
+
+        when(accountRepository.findById(1L))
+                .thenReturn(Optional.of(sourceAccount));
+
+        when(accountRepository.findById(2L))
+                .thenReturn(Optional.of(targetAccount));
+
+        TransferRequest request =
+                new TransferRequest(
+                        1L,
+                        2L,
+                        new BigDecimal("500.00")
+                );
+
+        transferService.transfer(request);
+
+        ArgumentCaptor<Transfer> captor =
+                ArgumentCaptor.forClass(Transfer.class);
+
+        verify(transferRepository).save(captor.capture());
+
+        Transfer savedTransfer = captor.getValue();
+
+        assertEquals(
+                sourceAccount,
+                savedTransfer.getSourceAccount()
+        );
+
+        assertEquals(
+                targetAccount,
+                savedTransfer.getTargetAccount()
+        );
+
+        assertEquals(
+                new BigDecimal("500.00"),
+                savedTransfer.getAmount()
+        );
+    }
+
+    @Test
+    void testTransferSavedWithCompletedStatus() {
+
+        Account sourceAccount = new Account();
+        sourceAccount.setId(1L);
+        sourceAccount.setBalance(new BigDecimal("5000.00"));
+        sourceAccount.setStatus(AccountStatus.ACTIVE);
+
+        Account targetAccount = new Account();
+        targetAccount.setId(2L);
+        targetAccount.setBalance(new BigDecimal("1000.00"));
+        targetAccount.setStatus(AccountStatus.ACTIVE);
+
+        when(accountRepository.findById(1L))
+                .thenReturn(Optional.of(sourceAccount));
+
+        when(accountRepository.findById(2L))
+                .thenReturn(Optional.of(targetAccount));
+
+        TransferRequest request =
+                new TransferRequest(
+                        1L,
+                        2L,
+                        new BigDecimal("500.00")
+                );
+
+        transferService.transfer(request);
+
+        ArgumentCaptor<Transfer> captor =
+                ArgumentCaptor.forClass(Transfer.class);
+
+        verify(transferRepository).save(captor.capture());
+
+        Transfer savedTransfer = captor.getValue();
+
+        assertEquals(
+                "COMPLETED",
+                savedTransfer.getStatus()
+        );
+    }
+
+    @Test
+    void testTransferSavedWithDate() {
+
+        Account sourceAccount = new Account();
+        sourceAccount.setId(1L);
+        sourceAccount.setBalance(new BigDecimal("5000.00"));
+        sourceAccount.setStatus(AccountStatus.ACTIVE);
+
+        Account targetAccount = new Account();
+        targetAccount.setId(2L);
+        targetAccount.setBalance(new BigDecimal("1000.00"));
+        targetAccount.setStatus(AccountStatus.ACTIVE);
+
+        when(accountRepository.findById(1L))
+                .thenReturn(Optional.of(sourceAccount));
+
+        when(accountRepository.findById(2L))
+                .thenReturn(Optional.of(targetAccount));
+
+        TransferRequest request =
+                new TransferRequest(
+                        1L,
+                        2L,
+                        new BigDecimal("500.00")
+                );
+
+        transferService.transfer(request);
+
+        ArgumentCaptor<Transfer> captor =
+                ArgumentCaptor.forClass(Transfer.class);
+
+        verify(transferRepository).save(captor.capture());
+
+        Transfer savedTransfer = captor.getValue();
+
+        assertNotNull(savedTransfer.getDate());
+    }
+
+    }

@@ -75,7 +75,7 @@ public class AccountService {
                         "Account not found with id: " + id
                 ));
 
-        account.setAccountType(request.accountType());
+            account.setAccountType(request.accountType());
 
         return account;
     }

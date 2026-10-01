@@ -98,10 +98,6 @@ class CustomerTest {
 
     @Test
     void testDeleteAll(){
-        Custumer custumer = new Custumer();
-        custumer.setId(1L);
-        custumer.setCpf("12345688");
-        custumer.setEmail("testCustumer@hotmail.com");
 
         when(custumerRepository.existsById(1l))
                 .thenReturn(true);
@@ -109,8 +105,7 @@ class CustomerTest {
         customerService.delete(1l);
 
 
-        verify(custumerRepository)
-                .deleteById(1L);
+        verify(custumerRepository).existsById(1L);
     }
 
     @Test

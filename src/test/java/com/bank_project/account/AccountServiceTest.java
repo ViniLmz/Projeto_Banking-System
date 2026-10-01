@@ -2,6 +2,7 @@ package com.bank_project.account;
 
 import com.bank_project.custumer.Custumer;
 import com.bank_project.custumer.CustumerRepository;
+import com.bank_project.exception.AccountNumberAlreadyExistsException;
 import com.bank_project.exception.InsufficientBalanceException;
 import com.bank_project.exception.ResourceNotFoundException;
 
@@ -385,12 +386,139 @@ class AccountServiceTest {
         assertEquals(AccountStatus.ACTIVE, result.getStatus());
         assertEquals(custumer, result.getCustomer());
 
+    }
+
+    @Test
+    void  testUpdate(){
+        Account account = new Account();
+        account.setId(1L);
+        account.setAccountType(AccountType.CHECKING);
+
+        when(accountRepository.findById(1L))
+                .thenReturn(Optional.of(account));
+
+           AccountUpdateRequest request = new AccountUpdateRequest(AccountType.SAVINGS);
+
+           Account result = accountService.update(1l, request);
+
+
+           assertEquals(AccountType.SAVINGS,result.getAccountType());
+           assertEquals(account, result);
+        verify(accountRepository).findById(1L);
 
 
     }
 
+    @Test
+    void testDeleteById(){
 
+        when(accountRepository.existsById(1L))
+                .thenReturn(true);
 
+        accountService.delete(1L);
+
+        verify(accountRepository).existsById(1L);
+        verify(accountRepository).deleteById(1L);
+
+    }
+
+    @Test
+    void testClientNotFound() {
+
+        when(accountRepository.existsByAccountNumber("1234"))
+                .thenReturn(false);
+
+        when(custumerRepository.findById(1L))
+                .thenReturn(Optional.empty());
+
+        AccountRequest request =
+                new AccountRequest(
+                        "1234",
+                        new BigDecimal("5000.00"),
+                        AccountType.SAVINGS,
+                        AccountStatus.ACTIVE,
+                        1L
+                );
+
+        assertThrows(
+                ResourceNotFoundException.class,
+                () -> accountService.save(request)
+        );
+    }
+
+    @Test
+    void testDuplicatedAccount(){
+        when(accountRepository.existsByAccountNumber("1234")).thenReturn(true);
+
+        AccountRequest request =
+                new AccountRequest(
+                        "1234",
+                        new BigDecimal("5000.00"),
+                        AccountType.SAVINGS,
+                        AccountStatus.ACTIVE,
+                        1L
+                );
+
+        assertThrows(AccountNumberAlreadyExistsException.class,()-> accountService.save(request));
+        verify(accountRepository, never()).save(any(Account.class));
+
+    }
+
+    @Test
+    void testUpdateAccountNotFound(){
+        when(accountRepository.findById(1L))
+                .thenReturn(Optional.empty());
+
+        AccountUpdateRequest request = new AccountUpdateRequest(AccountType.SAVINGS);
+
+        assertThrows(
+                ResourceNotFoundException.class,
+                () -> accountService.update(1L, request)
+        );
+    }
+
+    @Test
+    void testDeleteAccountNotFound(){
+        when(accountRepository.existsById(1l)).thenReturn(false);
+
+        assertThrows(ResourceNotFoundException.class,
+                ()-> accountService.delete(1l));
+
+    }
+
+    @Test
+    void testUpdateStatus(){
+        Account account = new Account();
+        account.setId(1L);
+        account.setAccountType(AccountType.CHECKING);
+        account.setStatus(AccountStatus.BLOCKED);
+
+        when(accountRepository.findById(1L))
+                .thenReturn(Optional.of(account));
+
+        AccountStatus accountStatus = AccountStatus.ACTIVE;
+
+        when(accountRepository.save(account))
+                .thenReturn(account);
+
+        Account result = accountService.updateStatus(1L, accountStatus);
+
+        assertEquals(AccountStatus.ACTIVE, result.getStatus());
+    }
+
+    @Test
+    void testUpdateStatusAccountNotFound(){
+
+        when(accountRepository.findById(1L))
+                .thenReturn(Optional.empty());
+
+        AccountStatus accountStatus = AccountStatus.ACTIVE;
+
+        assertThrows(
+                ResourceNotFoundException.class,
+                () -> accountService.updateStatus(1L, accountStatus)
+        );
+    }
 
 
 }

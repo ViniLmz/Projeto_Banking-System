@@ -20,8 +20,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import javax.swing.tree.TreeNode;
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 
 import static org.mockito.Mockito.when;
@@ -385,6 +385,22 @@ class TransferServiceTest  {
         Transfer savedTransfer = captor.getValue();
 
         assertNotNull(savedTransfer.getDate());
+    }
+
+    @Test
+    void testFindAll() {
+
+        Transfer transfer1 = new Transfer();
+        Transfer transfer2 = new Transfer();
+
+        when(transferRepository.findAll())
+                .thenReturn(List.of(transfer1, transfer2));
+
+        List<Transfer> transfers = transferService.findAll();
+
+        assertEquals(2, transfers.size());
+        assertEquals(transfer1, transfers.get(0));
+        assertEquals(transfer2, transfers.get(1));
     }
 
     }

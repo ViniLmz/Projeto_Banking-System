@@ -1,8 +1,12 @@
 package com.bank_project.account;
 
+import com.bank_project.custumer.Custumer;
 import com.bank_project.custumer.CustumerRepository;
 import com.bank_project.exception.InsufficientBalanceException;
 import com.bank_project.exception.ResourceNotFoundException;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -12,10 +16,9 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import com.bank_project.exception.BlockedAccountException;
 import org.springframework.web.bind.annotation.RequestBody;
 
@@ -234,7 +237,7 @@ class AccountServiceTest {
 
         accountService.withdraw(1L,request);
 
-        ArgumentCaptor<Account> captor =
+            ArgumentCaptor<Account> captor =
                 ArgumentCaptor.forClass(Account.class);
 
         verify(accountRepository).save(captor.capture());
@@ -312,7 +315,79 @@ class AccountServiceTest {
 
     }
 
+    @Test
+    void testFindAll(){
+        Account account= new Account();
+        account.setId(1l);
+        account.setStatus(AccountStatus.ACTIVE);
+        account.setBalance(new BigDecimal("5000.00"));
 
+        List<Account> accounts = List.of(account);
+
+        when(accountRepository.findAll())
+                .thenReturn(accounts);
+
+
+        List<Account> result = accountService.findAll();
+
+        assertEquals(accounts, result);
+
+    }
+
+    @Test
+    void testFindById(){
+        Account account = new Account();
+        account.setId(1l);
+        account.setStatus(AccountStatus.ACTIVE);
+        account.setBalance(new BigDecimal("5000.00"));
+
+        when(accountRepository.findById(1l)).thenReturn(Optional.of(account));
+
+        Optional<Account> result = accountService.findById(1L);
+
+
+        assertTrue(result.isPresent());
+        assertEquals(account, result.get());
+
+        verify(accountRepository).findById(1l);
+
+    }
+
+    @Test
+    void testSaveAccount(){
+          Custumer custumer = new Custumer();
+        custumer.setId(1L);
+
+        when(custumerRepository.findById(1L))
+                .thenReturn(Optional.of(custumer));
+
+
+        AccountRequest request =
+                new AccountRequest(
+                        "1234",
+                        new BigDecimal("5000.00"),
+                        AccountType.SAVINGS,
+                        AccountStatus.ACTIVE,
+                        1l);
+
+
+        when(accountRepository.existsByAccountNumber("1234"))
+                .thenReturn(false);
+
+        when(accountRepository.save(any(Account.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        Account result = accountService.save(request);
+
+        assertEquals("1234", result.getAccountNumber());
+        assertEquals(new BigDecimal("5000.00"), result.getBalance());
+        assertEquals(AccountType.SAVINGS, result.getAccountType());
+        assertEquals(AccountStatus.ACTIVE, result.getStatus());
+        assertEquals(custumer, result.getCustomer());
+
+
+
+    }
 
 
 

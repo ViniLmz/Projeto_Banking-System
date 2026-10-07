@@ -323,8 +323,6 @@ class LoanServiceTest {
                 ()-> loanService.reject(1l)
         );
 
-
-
     }
 
 

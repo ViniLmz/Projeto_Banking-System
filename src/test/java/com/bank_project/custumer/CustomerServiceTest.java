@@ -15,7 +15,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-class CustomerTest {
+class CustomerServiceTest {
 
     @Mock
     private CustumerRepository custumerRepository;
@@ -99,13 +99,13 @@ class CustomerTest {
     @Test
     void testDeleteAll(){
 
-        when(custumerRepository.existsById(1l))
+        when(custumerRepository.existsById(1L))
                 .thenReturn(true);
 
-        customerService.delete(1l);
-
+        customerService.delete(1L);
 
         verify(custumerRepository).existsById(1L);
+        verify(custumerRepository).deleteById(1L);
     }
 
     @Test
@@ -128,22 +128,20 @@ class CustomerTest {
         custumer.setCpf("12345688");
         custumer.setEmail("testCustumer@hotmail.com");
 
-        when(custumerRepository.existsById(1l))
+        when(custumerRepository.existsById(1L))
                 .thenReturn(true);
 
-
-        when(custumerRepository.existsByCpfAndIdNot("12345688",1l))
+        when(custumerRepository.existsByCpfAndIdNot("12345688", 1L))
                 .thenReturn(false);
 
         when(custumerRepository.save(custumer))
                 .thenReturn(custumer);
 
-
         Custumer result = customerService.update(1L, custumer);
 
         assertEquals(custumer, result);
+        verify(custumerRepository).save(custumer);
     }
-
     @Test
     void testCPFAlreadyUsed(){
         Custumer custumer = new Custumer();

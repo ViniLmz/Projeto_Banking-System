@@ -2,7 +2,8 @@ package com.bank_project.account;
 
 
 
-import com.bank_project.custumer.Custumer;
+
+import static org.assertj.core.api.Assertions.assertThat;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,13 +39,13 @@ public class AccountRepositoryTest {
 
 
         assertEquals(1, result.size());
-        Assertions.assertThat(result).contains(account);
+        assertThat(result).contains(account);
     }
 
     @Test
     void testFindAllEmpty(){
         List<Account> result = repository.findAll();
-        Assertions.assertThat(result).isEmpty();
+       assertThat(result).isEmpty();
     }
 
     @Test
@@ -55,14 +56,12 @@ public class AccountRepositoryTest {
         account.setAccountType(AccountType.CHECKING);
         account.setStatus(AccountStatus.ACTIVE);
 
-        repository.save(account);
-
         Account saved = repository.save(account);
 
         var result = repository.findById(saved.getId());
 
-        Assertions.assertThat(result).isPresent();
-        Assertions.assertThat(saved.getId()).isEqualTo(result.get().getId());
+      assertThat(result).isPresent();
+      assertThat(saved.getId()).isEqualTo(result.get().getId());
     }
 
     @Test
@@ -85,10 +84,26 @@ public class AccountRepositoryTest {
        repository.deleteById(id);
         var result = repository.existsById(id);
         Assertions.assertThat(result).isFalse();
-
     }
 
+    @Test
+    void testExistsByAccountNumber(){
+        Account account = new Account();
+        account.setAccountNumber("123456");
+        account.setBalance(new BigDecimal("4000.00"));
+        account.setAccountType(AccountType.CHECKING);
+        account.setStatus(AccountStatus.ACTIVE);
 
 
+       var result = repository.existsByAccountNumber(account.getAccountNumber());
 
+        assertThat(result).isTrue();
+    }
+
+    @Test
+    void existsByAccountNumberNotFound() {
+        var result = repository.existsByAccountNumber("999999");
+
+        assertThat(result).isFalse();
+    }
 }

@@ -57,13 +57,13 @@ public class AccountRepositoryTest {
 
 
     @Test
-    void testShouldDeleteById(){
-
+    void testShouldDeleteById() {
         Account account = new Account();
+        account.setStatus(AccountStatus.ACTIVE);
+        account.setBalance(new BigDecimal("4000.00"));
 
-        repository.save(account);
-
-        var id = account.getId();
+        Account saved = repository.save(account);
+        var id = saved.getId();
 
         repository.deleteById(id);
 

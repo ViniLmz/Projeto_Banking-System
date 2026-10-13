@@ -10,9 +10,10 @@ import com.bank_project.transfer.TransferRepository;
 import com.bank_project.transfer.TransferRequest;
 import com.bank_project.transfer.TransferService;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.*;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -24,8 +25,6 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
-import static org.mockito.Mockito.when;
-
 
 @ExtendWith(MockitoExtension.class)
 class TransferServiceTest  {
@@ -33,8 +32,6 @@ class TransferServiceTest  {
     @Mock
     private AccountRepository accountRepository;
 
-    @Mock
-    private CustumerRepository custumerRepository;
 
     @Mock
     private TransferRepository transferRepository;
@@ -105,7 +102,20 @@ class TransferServiceTest  {
         assertThrows(
                 InsufficientBalanceException.class,
                 () -> transferService.transfer(request)
+
         );
+
+        assertEquals(
+                new BigDecimal("500.00"),
+                sourceAccount.getBalance()
+        );
+
+        assertEquals(
+                new BigDecimal("1000.00"),
+                targetAccount.getBalance()
+        );
+
+        verify(transferRepository, never()).save(any());
     }
 
     @Test
@@ -403,6 +413,27 @@ class TransferServiceTest  {
         assertEquals(transfer2, transfers.get(1));
     }
 
+    @Test
+    void testFindAllEmptyTransfer() {
+
+        when(transferRepository.findAll())
+                .thenReturn(List.of());
+
+        List<Transfer> transfers = transferService.findAll();
+
+        assertThat(transfers).isEmpty();
+    }
+
+    @Test
+    void testFindAllIsCallEmpty() {
+
+        when(transferRepository.findAll())
+                .thenReturn(List.of());
+
+        List<Transfer> transfers = transferService.findAll();
+
+        verify(transferRepository, times(1) ).findAll();
+    }
 
 
 }

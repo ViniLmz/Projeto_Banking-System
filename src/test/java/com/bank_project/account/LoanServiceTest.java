@@ -17,11 +17,12 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 
 @ExtendWith(MockitoExtension.class)
@@ -76,7 +77,7 @@ class LoanServiceTest {
         assertEquals(10, loan.getInstallments());
         assertEquals("PENDING", loan.getStatus());
 
-
+        verify(loanRepository).save(any(Loan.class));
     }
 
     @Test
@@ -98,6 +99,7 @@ class LoanServiceTest {
 
         assertThrows(ResourceNotFoundException.class,
                 ()-> loanService.save(request));
+        verify(loanRepository, never()).save(any(Loan.class));
     }
 
     @Test
@@ -322,7 +324,18 @@ class LoanServiceTest {
                 InvalidLoanStatusException.class,
                 ()-> loanService.reject(1l)
         );
+    }
 
+    @Test
+    void testFindAllIsCallEmpty() {
+
+        when(loanRepository.findAll())
+                .thenReturn(List.of());
+
+        List<Loan> transfers = loanService.findAll();
+
+        verify(loanRepository, times(1) ).findAll();
+        verify(loanRepository, never()).save(any(Loan.class));
     }
 
 

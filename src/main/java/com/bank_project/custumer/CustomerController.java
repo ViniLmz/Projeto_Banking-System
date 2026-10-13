@@ -1,41 +1,37 @@
 package com.bank_project.custumer;
 
-import com.bank_project.account.Account;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import com.bank_project.account.AccountRequest;
 
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/")
-
+@RequestMapping("/api/customers")
 public class CustomerController {
 
-    private final CustomerService CustomerController;
+    private final CustomerService customerService;
 
     public CustomerController(CustomerService customerService) {
-        this.CustomerController = customerService;
+        this.customerService = customerService;
     }
 
     @GetMapping
     public ResponseEntity<List<Custumer>> getAll() {
-        return ResponseEntity.ok(CustomerController.findAll());
+        return ResponseEntity.ok(customerService.findAll());
     }
 
-    @GetMapping("/{Id}")
-    public ResponseEntity<Custumer> getById(@PathVariable Long Id) {
-        return CustomerController.findById(Id).
+    @GetMapping("/{id}")
+    public ResponseEntity<Custumer> getById(@PathVariable Long id) {
+        return customerService.findById(id).
                 map(ResponseEntity::ok).
                 orElse(ResponseEntity.notFound().build());
     }
 
     @PostMapping
-
     public ResponseEntity<Custumer> create(@Valid @RequestBody Custumer custumer) {
-        Custumer savedCustomer = CustomerController.save(custumer);
+        Custumer savedCustomer = customerService.save(custumer);
         return  ResponseEntity.status(HttpStatus.CREATED).body(savedCustomer);
     }
 
@@ -45,13 +41,13 @@ public class CustomerController {
        @PathVariable Long id,
        @Valid @RequestBody Custumer custumer){
 
-        Custumer updateCustomer = CustomerController.update(id, custumer);
+        Custumer updateCustomer = customerService.update(id, custumer);
         return ResponseEntity.ok(updateCustomer);
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
-        CustomerController.delete(id);
+        customerService.delete(id);
         return ResponseEntity.noContent().build();
     }
 

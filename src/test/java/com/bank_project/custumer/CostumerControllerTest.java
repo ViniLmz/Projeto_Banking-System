@@ -12,9 +12,12 @@ import java.util.Optional;
 import org.springframework.http.MediaType;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+
 
 
 @WebMvcTest(CustomerController.class)
@@ -47,13 +50,12 @@ public class CostumerControllerTest {
                 .thenReturn(Optional.of(custumer));
 
         mockMvc.perform(get("/api/customers/1"))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1l));
     }
 
     @Test
-    void shouldReturn404WhenCustomerNotFound() throws Exception{
-        Custumer custumer = new Custumer();
-
+    void shouldReturn404WhenCustomerNotFound() throws Exception {
         when(customerService.findById(1L))
                 .thenReturn(Optional.empty());
 
@@ -81,7 +83,12 @@ public class CostumerControllerTest {
                                 "cpf": "12345678900"
                             }
                             """))
-                .andExpect(status().isCreated());
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value(1l))
+                .andExpect(jsonPath("$.name").value("Vinicius Lima"))
+                .andExpect(jsonPath("$.email").value("vinicius@email.com"))
+                .andExpect(jsonPath("$.cpf").value("12345678900"));
+
     }
 
     @Test
@@ -104,7 +111,10 @@ public class CostumerControllerTest {
                                 "cpf": "12345678900"
                             }
                             """))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("Vinicius Lima"))
+                .andExpect(jsonPath("$.email").value("vinicius@email.com"))
+                .andExpect(jsonPath("$.cpf").value("12345678900"));
     }
 
 
@@ -112,6 +122,8 @@ public class CostumerControllerTest {
     void shouldDeleteByIdReturn204() throws Exception {
         mockMvc.perform(delete("/api/customers/1"))
                 .andExpect(status().isNoContent());
+
+
     }
 
 

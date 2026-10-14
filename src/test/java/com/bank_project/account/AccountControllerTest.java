@@ -10,14 +10,15 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.http.MediaType;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -98,7 +99,8 @@ public class AccountControllerTest {
                             "amount": 1000
                             }
                         """))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.balance").value(4000.00));
     }
 
     @Test
@@ -120,7 +122,8 @@ public class AccountControllerTest {
                                 "accountType": "SAVINGS"
                             }
                             """))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accountType").value("SAVINGS"));
 
     }
 
@@ -143,29 +146,38 @@ public class AccountControllerTest {
                           "status": "BLOCKED"
                         }
                         """
-
-                )).andExpect(status().isOk());
+                )).andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("BLOCKED"));
     }
 
     @Test
     void shouldReturn204WhenDeleted() throws Exception{
         mockMvc.perform(delete("/api/accounts/1"))
                 .andExpect(status().isNoContent());
+
+        verify(accountService).delete(1L);
     }
 
     @Test
-    void shouldReturn200WhenGetAll() throws  Exception{
-       mockMvc.perform(get("/api/accounts")).andExpect(status().isOk());
+    void shouldReturn200WhenGetAll() throws Exception {
+        when(accountService.findAll()).thenReturn(List.of());
 
+        mockMvc.perform(get("/api/accounts"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
     }
 
     @Test
     void shouldReturn404WhenAccountNotFound() throws Exception {
-        when(accountService.findById(1L)).thenReturn(Optional.empty());
+        when(accountService.findById(1L))
+                .thenReturn(Optional.empty());
 
         mockMvc.perform(get("/api/accounts/1"))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message")
+                        .value("Account not found with id: 1"));
     }
+
     @Test
     void shouldReturn404WhenDeletingAccountNotFound() throws Exception {
         doThrow(new ResourceNotFoundException("Account not found with id: 1"))
@@ -175,7 +187,22 @@ public class AccountControllerTest {
                 .andExpect(status().isNotFound());
     }
 
+    @Test
+    void shouldReturn200WhenGetById() throws Exception {
+        Account account = new Account();
+        account.setId(1L);
+        account.setAccountNumber("123456");
+        account.setBalance(new BigDecimal("4000.00"));
 
+        when(accountService.findById(1L))
+                .thenReturn(Optional.of(account));
+
+        mockMvc.perform(get("/api/accounts/1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1))
+                .andExpect(jsonPath("$.accountNumber").value("123456"))
+                .andExpect(jsonPath("$.balance").value(4000.00));
+    }
 
 
 }

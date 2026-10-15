@@ -7,6 +7,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.http.MediaType;
@@ -30,12 +31,18 @@ public class CostumerControllerTest {
     private CustomerService customerService;
 
 
+
     @Test
     void shouldReturn200OKWhenFetchingCustomers() throws Exception {
 
+        when(customerService.findAll())
+                .thenReturn(List.of());
+
         mockMvc.perform(get("/api/customers"))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
     }
+
 
 
     @Test
@@ -123,6 +130,7 @@ public class CostumerControllerTest {
         mockMvc.perform(delete("/api/customers/1"))
                 .andExpect(status().isNoContent());
 
+        verify(customerService).delete(1l);
 
     }
 

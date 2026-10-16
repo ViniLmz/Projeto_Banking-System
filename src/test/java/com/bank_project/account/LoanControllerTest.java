@@ -14,7 +14,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.ExecutionException;
+
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -33,22 +33,24 @@ public class LoanControllerTest {
     @MockitoBean
     private LoanService loanService;
 
+
     @Test
     void shouldReturn201WhenLoanIsCreated() throws Exception {
 
         Custumer custumer = new Custumer();
-        custumer.setId(1l);
+        custumer.setId(1L);
+
         Account account = new Account();
-        account.setId(2l);
+        account.setId(2L);
         account.setCustomer(custumer);
 
-       LoanRequest request =
-                new LoanRequest
-                        (1l,
-                        2l,
-                        new BigDecimal("4000.00"),
-                        new BigDecimal(2.5),
-                        12);
+        LoanRequest request = new LoanRequest(
+                1L,
+                2L,
+                new BigDecimal("4000.00"),
+                new BigDecimal("2.5"),
+                12
+        );
 
         Loan loan = new Loan(
                 null,
@@ -60,31 +62,52 @@ public class LoanControllerTest {
                 "PENDING",
                 LocalDateTime.now()
         );
-                when(loanService.save(request)).thenReturn(loan);
 
-                        mockMvc.perform(post("/api/loans")
+        when(loanService.save(request)).thenReturn(loan);
+
+        mockMvc.perform(post("/api/loans")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {
+                            {
                                 "customerId": 1,
                                 "accountId": 2,
                                 "amount": 4000.00,
                                 "interestRate": 2.5,
-                                 "installments": 12
-                                }
-                           
-                                """)).andExpect(status().isCreated());
+                                "installments": 12
+                            }
+                            """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.amount").value(4000.00))
+                .andExpect(jsonPath("$.interestRate").value(2.5))
+                .andExpect(jsonPath("$.installments").value(12))
+                .andExpect(jsonPath("$.status").value("PENDING"));
     }
+
+
 
 
     @Test
-    void shouldReturn200WhenGetAll() throws Exception {
-        when(loanService.findAll()).thenReturn(List.of());
+    void shouldReturn200WhenGetAllLoans() throws Exception {
+
+        Loan loan = new Loan();
+        loan.setId(1L);
+        loan.setAmount(new BigDecimal("4000.00"));
+        loan.setInterestRate(new BigDecimal("2.5"));
+        loan.setInstallments(12);
+        loan.setStatus("PENDING");
+
+        when(loanService.findAll()).thenReturn(List.of(loan));
 
         mockMvc.perform(get("/api/loans"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(0));
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value(1))
+                .andExpect(jsonPath("$[0].amount").value(4000.00))
+                .andExpect(jsonPath("$[0].interestRate").value(2.5))
+                .andExpect(jsonPath("$[0].installments").value(12))
+                .andExpect(jsonPath("$[0].status").value("PENDING"));
     }
+
 
     @Test
     void shouldReturn200WhenGetId() throws Exception{
@@ -121,6 +144,7 @@ public class LoanControllerTest {
     }
 
 
+
     @Test
     void shouldReturn200WhenUpdated() throws Exception {
 
@@ -136,16 +160,22 @@ public class LoanControllerTest {
         mockMvc.perform(put("/api/loans/1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                            {
-                                "amount": 10.00,
-                                "interestRate": 3.5,
-                                "installments": 24
-                            }
-                            """))
+                        {
+                            "amount": 10.00,
+                            "interestRate": 3.5,
+                            "installments": 24
+                        }
+                        """))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.installments").value(24))
                 .andExpect(jsonPath("$.amount").value(10.00))
                 .andExpect(jsonPath("$.interestRate").value(3.5));
+
+        verify(loanService).update(
+                eq(1L),
+                any(LoanUpdateRequest.class)
+        );
     }
 
 
@@ -183,5 +213,37 @@ public class LoanControllerTest {
                 .andExpect(jsonPath("$.status").value("REJECTED"))
                 .andExpect(jsonPath("$.amount").value(1000.00));
     }
+
+
+    @Test
+    void shouldReturn404WhenLoanIsNotFound() throws Exception {
+
+        when(loanService.findById(1L)).thenReturn(Optional.empty());
+
+        mockMvc.perform(get("/api/loans/1"))
+                .andExpect(status().isNotFound());
+    }
+
+
+    @Test
+    void shouldReturn400WhenLoanRequestIsInvalid() throws Exception {
+
+        mockMvc.perform(post("/api/loans")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                        {
+                            "customerId": 1,
+                            "accountId": 2,
+                            "amount": -100.00,
+                            "interestRate": 2.5,
+                            "installments": 12
+                        }
+                        """))
+                .andExpect(status().isBadRequest());
+    }
+
+
+
+
 
 }

@@ -1,5 +1,5 @@
 
-        package com.bank_project.repository;
+package com.bank_project.repository;
 
 import com.bank_project.account.Account;
 import com.bank_project.account.AccountRepository;
@@ -58,12 +58,11 @@ class TransferRepositoryTest {
                 "COMPLETED"
         );
 
-        Transfer savedTransfer =
+
                 transferRepository.save(transfer);
 
         Optional<Transfer> foundTransfer =
-                transferRepository.findById(savedTransfer.getId());
-
+                transferRepository.findById(transfer.getId());
         assertTrue(foundTransfer.isPresent());
 
         assertEquals(

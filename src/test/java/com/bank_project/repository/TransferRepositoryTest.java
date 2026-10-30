@@ -55,7 +55,8 @@ class TransferRepositoryTest {
                 targetAccount,
                 new BigDecimal("500.00"),
                 LocalDateTime.now(),
-                "COMPLETED"
+                "COMPLETED",
+                "transfer-test-123"
         );
 
 
@@ -101,9 +102,10 @@ class TransferRepositoryTest {
                 null,
                 sourceAccount,
                 targetAccount,
-                new BigDecimal("200.00"),
+                new BigDecimal("500.00"),
                 LocalDateTime.now(),
-                "COMPLETED"
+                "COMPLETED",
+                "transfer-test-123"
         );
 
         transferRepository.save(transfer);

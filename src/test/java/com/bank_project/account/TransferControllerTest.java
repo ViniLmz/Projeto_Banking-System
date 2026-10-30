@@ -14,6 +14,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -45,7 +46,11 @@ public class TransferControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("Transfer successfully made"));
 
-        verify(transferService).transfer(any(TransferRequest.class));
+
+        verify(transferService).transfer(
+                anyString(),
+                any(TransferRequest.class)
+        );
     }
 
     @Test

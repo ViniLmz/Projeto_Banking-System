@@ -23,6 +23,9 @@ public class Transfer {
     @JoinColumn(name = "target_account_id")
     private Account targetAccount;
 
+    @Column(unique = true, nullable = false)
+    private String idempotencyKey;
+
     private BigDecimal amount;
 
     private LocalDateTime date;
@@ -33,13 +36,14 @@ public class Transfer {
     }
 
     public Transfer(Long id, Account sourceAccount, Account targetAccount,
-                    BigDecimal amount, LocalDateTime date, String status) {
+                    BigDecimal amount, LocalDateTime date, String status, String idempotencyKey) {
         this.id = id;
         this.sourceAccount = sourceAccount;
         this.targetAccount = targetAccount;
         this.amount = amount;
         this.date = date;
         this.status = status;
+        this.idempotencyKey = idempotencyKey;
     }
 
     public Long getId() {

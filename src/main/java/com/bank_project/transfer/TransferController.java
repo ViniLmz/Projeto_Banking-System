@@ -38,13 +38,15 @@ public class TransferController {
                     responseCode = "422",
                     description = "Insufficient balance or account cannot make the transfer")
     })
-@PostMapping
-public ResponseEntity<String> transfer(@Valid @RequestBody TransferRequest request) {
-    transferService.transfer(request);
+    @PostMapping
+    public ResponseEntity<Transfer> transfer(
+            @RequestHeader("Idempotency-Key") String idempotencyKey,
+            @Valid @RequestBody TransferRequest request) {
 
-    return ResponseEntity.ok("Transfer successfully made");
-}
+        Transfer transfer = transferService.transfer(idempotencyKey, request);
 
+        return ResponseEntity.ok(transfer);
+    }
 
     @Operation(
             summary = "List of Transfer ",

@@ -8,10 +8,7 @@ import java.util.Optional;
 import com.bank_project.account.Account;
 import com.bank_project.account.AccountRepository;
 import com.bank_project.account.AccountStatus;
-import com.bank_project.exception.BlockedAccountException;
-import com.bank_project.exception.InsufficientBalanceException;
-import com.bank_project.exception.ResourceNotFoundException;
-import com.bank_project.exception.SameAccountTransferException;
+import com.bank_project.exception.*;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,11 +30,33 @@ public class TransferService {
     @Transactional
     public Transfer transfer(String idempotencyKey, TransferRequest request) {
 
+        if (idempotencyKey == null || idempotencyKey.isBlank()) {
+            throw new IllegalArgumentException("Idempotency-Key cannot be blank");
+        }
+
         Optional<Transfer> existingTransfer =
                 transferRepository.findByIdempotencyKey(idempotencyKey);
 
         if (existingTransfer.isPresent()) {
-            return existingTransfer.get();
+
+            Transfer existing = existingTransfer.get();
+
+            boolean sameSource = existing.getSourceAccount().getId()
+                    .equals(request.sourceAccountId());
+
+            boolean sameTarget = existing.getTargetAccount().getId()
+                    .equals(request.targetAccountId());
+
+            boolean sameAmount = existing.getAmount()
+                    .compareTo(request.amount()) == 0;
+
+            if (!sameSource || !sameTarget || !sameAmount) {
+                throw new IdempotencyKeyConflictException(
+                        "Idempotency key already used with different transfer data"
+                );
+            }
+
+            return existing;
         }
 
         Account source = accountRepository.findById(request.sourceAccountId())

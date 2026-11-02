@@ -1,10 +1,6 @@
-
 package com.bank_project.account;
 
-import com.bank_project.exception.BlockedAccountException;
-import com.bank_project.exception.InsufficientBalanceException;
-import com.bank_project.exception.ResourceNotFoundException;
-import com.bank_project.exception.SameAccountTransferException;
+import com.bank_project.exception.*;
 import com.bank_project.transfer.Transfer;
 import com.bank_project.transfer.TransferRepository;
 import com.bank_project.transfer.TransferRequest;
@@ -24,6 +20,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -41,31 +38,98 @@ class TransferServiceTest {
     private TransferService transferService;
 
     @Test
-    void testTransfer() {
+    void shouldRejectNullOrEmptyIdempotencyKey() {
+
+        TransferRequest request = new TransferRequest(
+                1L,
+                2L,
+                new BigDecimal("500.00")
+        );
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> transferService.transfer(null, request)
+        );
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> transferService.transfer("   ", request)
+        );
+
+        verifyNoInteractions(transferRepository, accountRepository);
+    }
+
+    @Test
+    void shouldThrowConflictWhenIdempotencyKeyIsUsedWithDifferentData() {
 
         Account sourceAccount = new Account();
         sourceAccount.setId(1L);
-        sourceAccount.setBalance(new BigDecimal("5000.00"));
-        sourceAccount.setStatus(AccountStatus.ACTIVE);
 
         Account targetAccount = new Account();
         targetAccount.setId(2L);
-        targetAccount.setBalance(new BigDecimal("1000.00"));
-        targetAccount.setStatus(AccountStatus.ACTIVE);
 
-        when(accountRepository.findById(1L))
-                .thenReturn(Optional.of(sourceAccount));
+        Transfer existingTransfer = new Transfer(
+                1L,
+                sourceAccount,
+                targetAccount,
+                new BigDecimal("1000.00"),
+                java.time.LocalDateTime.now(),
+                "COMPLETED",
+                IDEMPOTENCY_KEY
+        );
 
-        when(accountRepository.findById(2L))
-                .thenReturn(Optional.of(targetAccount));
+        TransferRequest request = new TransferRequest(
+                1L,
+                2L,
+                new BigDecimal("5000.00")
+        );
 
-        TransferRequest request =
-                new TransferRequest(1L, 2L, new BigDecimal("1000.00"));
+        when(transferRepository.findByIdempotencyKey(IDEMPOTENCY_KEY))
+                .thenReturn(Optional.of(existingTransfer));
 
-        transferService.transfer(IDEMPOTENCY_KEY, request);
+        assertThrows(
+                IdempotencyKeyConflictException.class,
+                () -> transferService.transfer(IDEMPOTENCY_KEY, request)
+        );
 
-        assertEquals(new BigDecimal("4000.00"), sourceAccount.getBalance());
-        assertEquals(new BigDecimal("2000.00"), targetAccount.getBalance());
+        verify(accountRepository, never()).findById(anyLong());
+        verify(accountRepository, never()).save(any());
+        verify(transferRepository, never()).save(any());
+    }
+    @Test
+    void shouldReturnExistingTransferWhenIdempotencyKeyAlreadyExists() {
+
+        Account sourceAccount = new Account();
+        sourceAccount.setId(1L);
+
+        Account targetAccount = new Account();
+        targetAccount.setId(2L);
+
+        TransferRequest request = new TransferRequest(
+                1L,
+                2L,
+                new BigDecimal("1000.00")
+        );
+
+        Transfer existingTransfer = new Transfer(
+                1L,
+                sourceAccount,
+                targetAccount,
+                new BigDecimal("1000.00"),
+                java.time.LocalDateTime.now(),
+                "COMPLETED",
+                IDEMPOTENCY_KEY
+        );
+
+        when(transferRepository.findByIdempotencyKey(IDEMPOTENCY_KEY))
+                .thenReturn(Optional.of(existingTransfer));
+
+        Transfer result = transferService.transfer(IDEMPOTENCY_KEY, request);
+
+        assertEquals(existingTransfer, result);
+
+        verify(accountRepository, never()).findById(anyLong());
+        verify(accountRepository, never()).save(any());
+        verify(transferRepository, never()).save(any());
     }
 
     @Test
@@ -87,12 +151,11 @@ class TransferServiceTest {
         when(accountRepository.findById(2L))
                 .thenReturn(Optional.of(targetAccount));
 
-        TransferRequest request =
-                new TransferRequest(
-                        1L,
-                        2L,
-                        new BigDecimal("5000.00")
-                );
+        TransferRequest request = new TransferRequest(
+                1L,
+                2L,
+                new BigDecimal("5000.00")
+        );
 
         assertThrows(
                 InsufficientBalanceException.class,
@@ -124,8 +187,11 @@ class TransferServiceTest {
         when(accountRepository.findById(2L))
                 .thenReturn(Optional.of(targetAccount));
 
-        TransferRequest request =
-                new TransferRequest(1L, 2L, new BigDecimal("500"));
+        TransferRequest request = new TransferRequest(
+                1L,
+                2L,
+                new BigDecimal("500")
+        );
 
         assertThrows(
                 BlockedAccountException.class,
@@ -144,8 +210,11 @@ class TransferServiceTest {
         when(accountRepository.findById(1L))
                 .thenReturn(Optional.of(sourceAccount));
 
-        TransferRequest request =
-                new TransferRequest(1L, 1L, new BigDecimal("500"));
+        TransferRequest request = new TransferRequest(
+                1L,
+                1L,
+                new BigDecimal("500")
+        );
 
         assertThrows(
                 SameAccountTransferException.class,
@@ -159,12 +228,11 @@ class TransferServiceTest {
         when(accountRepository.findById(1L))
                 .thenReturn(Optional.empty());
 
-        TransferRequest request =
-                new TransferRequest(
-                        1L,
-                        2L,
-                        new BigDecimal("500.00")
-                );
+        TransferRequest request = new TransferRequest(
+                1L,
+                2L,
+                new BigDecimal("500.00")
+        );
 
         assertThrows(
                 ResourceNotFoundException.class,
@@ -186,12 +254,11 @@ class TransferServiceTest {
         when(accountRepository.findById(2L))
                 .thenReturn(Optional.empty());
 
-        TransferRequest request =
-                new TransferRequest(
-                        1L,
-                        2L,
-                        new BigDecimal("500.00")
-                );
+        TransferRequest request = new TransferRequest(
+                1L,
+                2L,
+                new BigDecimal("500.00")
+        );
 
         assertThrows(
                 ResourceNotFoundException.class,
@@ -218,8 +285,11 @@ class TransferServiceTest {
         when(accountRepository.findById(2L))
                 .thenReturn(Optional.of(accountTarget));
 
-        TransferRequest request =
-                new TransferRequest(1L, 2L, new BigDecimal("500.00"));
+        TransferRequest request = new TransferRequest(
+                1L,
+                2L,
+                new BigDecimal("500.00")
+        );
 
         assertThrows(
                 BlockedAccountException.class,
@@ -246,12 +316,11 @@ class TransferServiceTest {
         when(accountRepository.findById(2L))
                 .thenReturn(Optional.of(targetAccount));
 
-        TransferRequest request =
-                new TransferRequest(
-                        1L,
-                        2L,
-                        new BigDecimal("500.00")
-                );
+        TransferRequest request = new TransferRequest(
+                1L,
+                2L,
+                new BigDecimal("500.00")
+        );
 
         transferService.transfer(IDEMPOTENCY_KEY, request);
 
@@ -277,12 +346,11 @@ class TransferServiceTest {
         when(accountRepository.findById(2L))
                 .thenReturn(Optional.of(targetAccount));
 
-        TransferRequest request =
-                new TransferRequest(
-                        1L,
-                        2L,
-                        new BigDecimal("500.00")
-                );
+        TransferRequest request = new TransferRequest(
+                1L,
+                2L,
+                new BigDecimal("500.00")
+        );
 
         transferService.transfer(IDEMPOTENCY_KEY, request);
 
@@ -317,12 +385,11 @@ class TransferServiceTest {
         when(accountRepository.findById(2L))
                 .thenReturn(Optional.of(targetAccount));
 
-        TransferRequest request =
-                new TransferRequest(
-                        1L,
-                        2L,
-                        new BigDecimal("500.00")
-                );
+        TransferRequest request = new TransferRequest(
+                1L,
+                2L,
+                new BigDecimal("500.00")
+        );
 
         transferService.transfer(IDEMPOTENCY_KEY, request);
 
@@ -355,12 +422,11 @@ class TransferServiceTest {
         when(accountRepository.findById(2L))
                 .thenReturn(Optional.of(targetAccount));
 
-        TransferRequest request =
-                new TransferRequest(
-                        1L,
-                        2L,
-                        new BigDecimal("500.00")
-                );
+        TransferRequest request = new TransferRequest(
+                1L,
+                2L,
+                new BigDecimal("500.00")
+        );
 
         transferService.transfer(IDEMPOTENCY_KEY, request);
 

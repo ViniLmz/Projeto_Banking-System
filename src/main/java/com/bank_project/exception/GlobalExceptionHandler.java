@@ -108,6 +108,15 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(numberUsed);
     }
 
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<String> handleIllegalArgument(
+            IllegalArgumentException ex) {
+
+        return ResponseEntity
+                .badRequest()
+                .body(ex.getMessage());
+    }
+
     @ExceptionHandler(CpfAlreadyExistsException.class)
     public ResponseEntity<Map<String, Object>> handleCpfAlreadyExistsException(
             CpfAlreadyExistsException ex) {
@@ -119,5 +128,13 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(cpfUsed);
     }
 
+    @ExceptionHandler(IdempotencyKeyConflictException.class)
+    public ResponseEntity<String> handleIdempotencyKeyConflict(
+            IdempotencyKeyConflictException ex) {
+
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(ex.getMessage());
+    }
 
 }

@@ -1,8 +1,10 @@
+
 package com.bank_project.config;
 
 import com.bank_project.auth.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -42,6 +44,12 @@ public class SecurityConfig {
                                 "/swagger-ui.html",
                                 "/v3/api-docs/**"
                         ).permitAll()
+
+                        .requestMatchers(
+                                HttpMethod.PATCH,
+                                "/api/accounts/*/status"
+                        ).hasRole("ADMIN")
+
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(

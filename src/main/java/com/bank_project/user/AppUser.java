@@ -1,6 +1,7 @@
 
 package com.bank_project.user;
 
+import com.bank_project.custumer.Custumer;
 import jakarta.persistence.*;
 
 @Entity
@@ -17,15 +18,28 @@ public class AppUser {
     @Column(nullable = false)
     private String password;
 
+    @OneToOne
+    @JoinColumn(name = "customer_id", unique = true)
+    private Custumer customer;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private UserRole role;
 
     public AppUser() {
     }
 
 
-   public  AppUser(String username, String password ){
+    public AppUser(String username, String password, Custumer customer,UserRole role) {
         this.username = username;
         this.password = password;
-   }
+        this.customer = customer;
+        this.role = role;
+    }
+
+    public UserRole getRole() {
+        return role;
+    }
 
     public Long getId(){
         return id;
@@ -49,5 +63,13 @@ public class AppUser {
 
     public void setPassword(String password) {
         this.password = password;
+    }
+
+    public Custumer getCustomer() {
+        return customer;
+    }
+
+    public void setCustomer(Custumer customer) {
+        this.customer = customer;
     }
 }

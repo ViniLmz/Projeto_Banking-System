@@ -4,6 +4,7 @@ import com.bank_project.exception.AccountNumberAlreadyExistsException;
 import com.bank_project.exception.BlockedAccountException;
 import com.bank_project.custumer.Custumer;
 import com.bank_project.custumer.CustumerRepository;
+import com.bank_project.user.CurrentUserService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.bank_project.exception.ResourceNotFoundException;
@@ -17,20 +18,26 @@ public class AccountService {
 
     private final AccountRepository accountRepository;
     private final CustumerRepository custumerRepository;
+    private final CurrentUserService currentUserService;
 
 
-
-    public AccountService(AccountRepository accountRepository, CustumerRepository custumerRepository) {
+    public AccountService(AccountRepository accountRepository, CustumerRepository custumerRepository, CurrentUserService currentUserService) {
         this.accountRepository = accountRepository;
         this.custumerRepository = custumerRepository;
+        this.currentUserService = currentUserService;
     }
 
     public List<Account> findAll() {
-        return accountRepository.findAll();
+        Long customerId = currentUserService.getCurrentCustomerId();
+
+        return accountRepository.findAllByCustomerId(customerId);
     }
 
     public Optional<Account> findById(Long id) {
-        return accountRepository.findById(id);
+
+        Long customerId = currentUserService.getCurrentCustomerId();
+
+        return accountRepository.findByIdAndCustomerId(id, customerId);
     }
 
 
@@ -39,6 +46,7 @@ public class AccountService {
         if (accountRepository.existsByAccountNumber(request.accountNumber())) {
             throw new AccountNumberAlreadyExistsException("Account number already exists");
         }
+
         Account account = new Account(
                 null,
                 request.accountNumber(),
@@ -47,8 +55,7 @@ public class AccountService {
                 request.status()
         );
 
-        Custumer custumer = custumerRepository.findById(request.customerId())
-                .orElseThrow(() -> new ResourceNotFoundException("Customer not found with id: " + request.customerId()));
+        Custumer custumer = currentUserService.getCurrentUser().getCustomer();
         account.setCustomer(custumer);
 
         return accountRepository.save(account);
@@ -57,24 +64,25 @@ public class AccountService {
     @Transactional
     public void delete(Long id) {
 
-        if (!accountRepository.existsById(id)) {
-            throw new ResourceNotFoundException(
-                    "Account not found with id: " + id
-            );
-        }
+        Long customerId = currentUserService.getCurrentCustomerId();
 
-        accountRepository.deleteById(id);
+        Account account = accountRepository.findByIdAndCustomerId(id, customerId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Account not found with id: " + id));
+
+        accountRepository.delete(account);
     }
 
     @Transactional
     public Account update(Long id, AccountUpdateRequest request) {
 
-        Account account = accountRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Account not found with id: " + id
-                ));
+        Long customerId = currentUserService.getCurrentCustomerId();
 
-            account.setAccountType(request.accountType());
+        Account account = accountRepository.findByIdAndCustomerId(id, customerId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Account not found with id: " + id));
+
+        account.setAccountType(request.accountType());
 
         return account;
     }
@@ -82,9 +90,11 @@ public class AccountService {
 
     public Account deposit(Long id, TransactionRequest request) {
 
-        Account account = accountRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Account not found with id: " + id));
+        Long customerId = currentUserService.getCurrentCustomerId();
 
+        Account account = accountRepository.findByIdAndCustomerId(id, customerId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Account not found with id: " + id));
         if (account.getStatus() == AccountStatus.BLOCKED) {
             throw new BlockedAccountException("This account is currently blocked");
         }
@@ -98,8 +108,12 @@ public class AccountService {
 
     public Account withdraw(Long id, TransactionRequest request) {
 
-        Account account = accountRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Account not found with id: " + id));
+
+        Long customerId = currentUserService.getCurrentCustomerId();
+
+        Account account = accountRepository.findByIdAndCustomerId(id, customerId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Account not found with id: " + id));
 
         if (account.getStatus() == AccountStatus.BLOCKED) {
             throw new BlockedAccountException("This account is currently blocked");
@@ -127,6 +141,7 @@ public class AccountService {
 
         return accountRepository.save(account);
     }
+
 
 }
 

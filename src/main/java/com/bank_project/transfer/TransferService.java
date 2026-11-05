@@ -3,12 +3,16 @@ package com.bank_project.transfer;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import com.bank_project.account.Account;
 import com.bank_project.account.AccountRepository;
 import com.bank_project.account.AccountStatus;
 import com.bank_project.exception.*;
+import com.bank_project.user.CurrentUserService;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,14 +22,31 @@ public class TransferService {
 
     private final AccountRepository accountRepository;
     private final TransferRepository transferRepository;
+    private final CurrentUserService currentUserService;
 
     public TransferService(
             AccountRepository accountRepository,
-            TransferRepository transferRepository) {
+            TransferRepository transferRepository,
+            CurrentUserService currentUserService) {
         this.accountRepository = accountRepository;
         this.transferRepository = transferRepository;
+        this.currentUserService = currentUserService;
     }
 
+    private Account findSourceAccountForCurrentUser(Long id) {
+
+        if (currentUserService.isAdmin()) {
+            return accountRepository.findById(id)
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Source account not found with id: " + id));
+        }
+
+        Long customerId = currentUserService.getCurrentCustomerId();
+
+        return accountRepository.findByIdAndCustomerId(id, customerId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Source account not found with id: " + id));
+    }
 
     @Transactional
     public Transfer transfer(String idempotencyKey, TransferRequest request) {
@@ -33,6 +54,8 @@ public class TransferService {
         if (idempotencyKey == null || idempotencyKey.isBlank()) {
             throw new IllegalArgumentException("Idempotency-Key cannot be blank");
         }
+
+        findSourceAccountForCurrentUser(request.sourceAccountId());
 
         Optional<Transfer> existingTransfer =
                 transferRepository.findByIdempotencyKey(idempotencyKey);
@@ -59,16 +82,32 @@ public class TransferService {
             return existing;
         }
 
-        Account source = accountRepository.findById(request.sourceAccountId())
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Source account not found with id: "
-                                + request.sourceAccountId()));
 
-        Account target = accountRepository.findById(request.targetAccountId())
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Target account not found with id: "
-                                + request.targetAccountId()));
+        List<Account> lockedAccounts = accountRepository.findAllByIdsWithLock(
+                List.of(request.sourceAccountId(), request.targetAccountId())
+        );
 
+        Map<Long, Account> accountsById = lockedAccounts.stream()
+                .collect(Collectors.toMap(Account::getId, Function.identity()));
+
+        Account source = accountsById.get(request.sourceAccountId());
+
+        if (source == null || (!currentUserService.isAdmin()
+                && !source.getCustomer().getId()
+                .equals(currentUserService.getCurrentCustomerId()))) {
+
+            throw new ResourceNotFoundException(
+                    "Source account not found with id: " + request.sourceAccountId());
+        }
+
+        Account target = accountsById.get(request.targetAccountId());
+
+        if (target == null) {
+            throw new ResourceNotFoundException(
+                    "Target account not found with id: " + request.targetAccountId());
+        }
+
+        // 4. Validações da transferência.
         if (source.getId().equals(target.getId())) {
             throw new SameAccountTransferException(
                     "Source and target accounts must be different");
@@ -86,16 +125,13 @@ public class TransferService {
             throw new InsufficientBalanceException("Insufficient balance");
         }
 
-        source.setBalance(
-                source.getBalance().subtract(request.amount())
-        );
 
-        target.setBalance(
-                target.getBalance().add(request.amount())
-        );
+        source.setBalance(source.getBalance().subtract(request.amount()));
+        target.setBalance(target.getBalance().add(request.amount()));
 
         accountRepository.save(source);
         accountRepository.save(target);
+
 
         Transfer transfer = new Transfer(
                 null,
@@ -110,8 +146,18 @@ public class TransferService {
         return transferRepository.save(transfer);
     }
 
-
     public List<Transfer> findAll() {
-        return transferRepository.findAll();
+
+        if (currentUserService.isAdmin()) {
+            return transferRepository.findAll();
+        }
+
+        Long customerId = currentUserService.getCurrentCustomerId();
+
+        return transferRepository
+                .findBySourceAccount_Customer_IdOrTargetAccount_Customer_Id(
+                        customerId,
+                        customerId
+                );
     }
 }

@@ -29,6 +29,14 @@ public class CurrentUserService {
         return getCurrentUser().getCustomer().getId();
     }
 
+    public boolean isAdmin() {
+        Authentication authentication =
+                SecurityContextHolder.getContext().getAuthentication();
+
+        return authentication.getAuthorities().stream()
+                .anyMatch(authority ->
+                        authority.getAuthority().equals("ROLE_ADMIN"));
+    }
 
 }
 

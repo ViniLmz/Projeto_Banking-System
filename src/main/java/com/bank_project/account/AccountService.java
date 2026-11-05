@@ -5,6 +5,7 @@ import com.bank_project.exception.BlockedAccountException;
 import com.bank_project.custumer.Custumer;
 import com.bank_project.custumer.CustumerRepository;
 import com.bank_project.user.CurrentUserService;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.bank_project.exception.ResourceNotFoundException;
@@ -27,13 +28,37 @@ public class AccountService {
         this.currentUserService = currentUserService;
     }
 
+    private Account findAccountForCurrentUser(Long id) {
+
+        if (currentUserService.isAdmin()) {
+            return accountRepository.findById(id)
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Account not found with id: " + id));
+        }
+
+        Long customerId = currentUserService.getCurrentCustomerId();
+
+        return accountRepository.findByIdAndCustomerId(id, customerId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Account not found with id: " + id));
+    }
+
     public List<Account> findAll() {
+
+        if (currentUserService.isAdmin()) {
+            return accountRepository.findAll();
+        }
+
         Long customerId = currentUserService.getCurrentCustomerId();
 
         return accountRepository.findAllByCustomerId(customerId);
     }
 
     public Optional<Account> findById(Long id) {
+
+        if (currentUserService.isAdmin()) {
+            return accountRepository.findById(id);
+        }
 
         Long customerId = currentUserService.getCurrentCustomerId();
 
@@ -62,23 +87,22 @@ public class AccountService {
     }
 
     @Transactional
+    @PreAuthorize("hasRole('ADMIN')")
     public void delete(Long id) {
 
-        Long customerId = currentUserService.getCurrentCustomerId();
-
-        Account account = accountRepository.findByIdAndCustomerId(id, customerId)
+        Account account = accountRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Account not found with id: " + id));
 
         accountRepository.delete(account);
     }
 
+
     @Transactional
+    @PreAuthorize("hasRole('ADMIN')")
     public Account update(Long id, AccountUpdateRequest request) {
 
-        Long customerId = currentUserService.getCurrentCustomerId();
-
-        Account account = accountRepository.findByIdAndCustomerId(id, customerId)
+        Account account = accountRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Account not found with id: " + id));
 
@@ -90,11 +114,8 @@ public class AccountService {
 
     public Account deposit(Long id, TransactionRequest request) {
 
-        Long customerId = currentUserService.getCurrentCustomerId();
+        Account account = findAccountForCurrentUser(id);
 
-        Account account = accountRepository.findByIdAndCustomerId(id, customerId)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Account not found with id: " + id));
         if (account.getStatus() == AccountStatus.BLOCKED) {
             throw new BlockedAccountException("This account is currently blocked");
         }
@@ -106,41 +127,39 @@ public class AccountService {
         return accountRepository.save(account);
     }
 
+
     public Account withdraw(Long id, TransactionRequest request) {
 
-
-        Long customerId = currentUserService.getCurrentCustomerId();
-
-        Account account = accountRepository.findByIdAndCustomerId(id, customerId)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Account not found with id: " + id));
+        Account account = findAccountForCurrentUser(id);
 
         if (account.getStatus() == AccountStatus.BLOCKED) {
             throw new BlockedAccountException("This account is currently blocked");
         }
 
-        if (request.amount().compareTo(account.getBalance()) <= 0) {
-            account.setBalance(
-                    account.getBalance().subtract(request.amount())
-            );
-        } else {
+        if (request.amount().compareTo(account.getBalance()) > 0) {
             throw new InsufficientBalanceException("Insufficient balance");
         }
 
-        return accountRepository.save(account);
-    }
-
-    @Transactional
-    public Account updateStatus(Long id, AccountStatus status) {
-
-        Account account = accountRepository.findById(id)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException("Account not found with id: " + id));
-
-        account.setStatus(status);
+        account.setBalance(
+                account.getBalance().subtract(request.amount())
+        );
 
         return accountRepository.save(account);
     }
+
+                @Transactional
+                @PreAuthorize("hasRole('ADMIN')")
+                public Account updateStatus(Long id, AccountStatus status) {
+
+                    Account account = accountRepository.findById(id)
+                            .orElseThrow(() ->
+                                    new ResourceNotFoundException(
+                                            "Account not found with id: " + id));
+
+                    account.setStatus(status);
+
+                    return account;
+                }
 
 
 }

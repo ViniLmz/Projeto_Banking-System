@@ -4,6 +4,11 @@ package com.bank_project.account;
 
 
 import static org.assertj.core.api.Assertions.assertThat;
+
+import com.bank_project.account.domain.Account;
+import com.bank_project.account.domain.AccountStatus;
+import com.bank_project.account.domain.AccountType;
+import com.bank_project.account.infra.AccountRepository;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

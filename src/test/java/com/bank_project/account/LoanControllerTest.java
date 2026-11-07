@@ -1,6 +1,7 @@
 package com.bank_project.account;
 
 
+import com.bank_project.account.domain.Account;
 import com.bank_project.custumer.Custumer;
 import com.bank_project.loan.*;
 import org.junit.jupiter.api.Test;

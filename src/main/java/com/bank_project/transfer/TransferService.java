@@ -8,9 +8,9 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import com.bank_project.account.Account;
-import com.bank_project.account.AccountRepository;
-import com.bank_project.account.AccountStatus;
+import com.bank_project.account.domain.Account;
+import com.bank_project.account.infra.AccountRepository;
+import com.bank_project.account.domain.AccountStatus;
 import com.bank_project.exception.*;
 import com.bank_project.user.CurrentUserService;
 

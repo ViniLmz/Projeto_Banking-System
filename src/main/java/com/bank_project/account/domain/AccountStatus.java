@@ -1,4 +1,4 @@
-package com.bank_project.account;
+package com.bank_project.account.domain;
 
 public enum AccountStatus {
     ACTIVE  ,

@@ -1,5 +1,14 @@
+
 package com.bank_project.account;
 
+import com.bank_project.account.aplication.AccountService;
+import com.bank_project.account.domain.Account;
+import com.bank_project.account.domain.AccountStatus;
+import com.bank_project.account.domain.AccountType;
+import com.bank_project.account.http.AccountRequest;
+import com.bank_project.account.http.AccountUpdateRequest;
+import com.bank_project.account.http.TransactionRequest;
+import com.bank_project.account.infra.AccountRepository;
 import com.bank_project.custumer.Custumer;
 import com.bank_project.custumer.CustumerRepository;
 import com.bank_project.exception.AccountNumberAlreadyExistsException;
@@ -23,6 +32,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -41,7 +51,7 @@ class AccountServiceTest {
     private AppUser appUser;
 
     @InjectMocks
-    private AccountService accountService;
+    private AccountService  accountService;
 
 
 
@@ -50,10 +60,7 @@ class AccountServiceTest {
 
         authenticateAsCustomer();
 
-        Account account = createAccount(
-                AccountStatus.ACTIVE,
-                "1000.00"
-        );
+        Account account = createAccount(AccountStatus.ACTIVE, "1000.00");
 
         when(accountRepository.findByIdAndCustomerId(1L, 1L))
                 .thenReturn(Optional.of(account));
@@ -76,10 +83,7 @@ class AccountServiceTest {
 
         authenticateAsCustomer();
 
-        Account account = createAccount(
-                AccountStatus.BLOCKED,
-                "1000.00"
-        );
+        Account account = createAccount(AccountStatus.BLOCKED, "1000.00");
 
         when(accountRepository.findByIdAndCustomerId(1L, 1L))
                 .thenReturn(Optional.of(account));
@@ -119,10 +123,7 @@ class AccountServiceTest {
 
         authenticateAsCustomer();
 
-        Account account = createAccount(
-                AccountStatus.ACTIVE,
-                "1000.00"
-        );
+        Account account = createAccount(AccountStatus.ACTIVE, "1000.00");
 
         when(accountRepository.findByIdAndCustomerId(1L, 1L))
                 .thenReturn(Optional.of(account));
@@ -150,10 +151,7 @@ class AccountServiceTest {
 
         authenticateAsCustomer();
 
-        Account account = createAccount(
-                AccountStatus.ACTIVE,
-                "1000.00"
-        );
+        Account account = createAccount(AccountStatus.ACTIVE, "1000.00");
 
         when(accountRepository.findByIdAndCustomerId(1L, 1L))
                 .thenReturn(Optional.of(account));
@@ -176,10 +174,7 @@ class AccountServiceTest {
 
         authenticateAsCustomer();
 
-        Account account = createAccount(
-                AccountStatus.BLOCKED,
-                "1000.00"
-        );
+        Account account = createAccount(AccountStatus.BLOCKED, "1000.00");
 
         when(accountRepository.findByIdAndCustomerId(1L, 1L))
                 .thenReturn(Optional.of(account));
@@ -200,10 +195,7 @@ class AccountServiceTest {
 
         authenticateAsCustomer();
 
-        Account account = createAccount(
-                AccountStatus.ACTIVE,
-                "500.00"
-        );
+        Account account = createAccount(AccountStatus.ACTIVE, "500.00");
 
         when(accountRepository.findByIdAndCustomerId(1L, 1L))
                 .thenReturn(Optional.of(account));
@@ -224,10 +216,7 @@ class AccountServiceTest {
 
         authenticateAsCustomer();
 
-        Account account = createAccount(
-                AccountStatus.ACTIVE,
-                "5000.00"
-        );
+        Account account = createAccount(AccountStatus.ACTIVE, "5000.00");
 
         when(accountRepository.findByIdAndCustomerId(1L, 1L))
                 .thenReturn(Optional.of(account));
@@ -266,6 +255,7 @@ class AccountServiceTest {
 
         verify(accountRepository, never()).save(any(Account.class));
     }
+
 
 
 
@@ -317,10 +307,7 @@ class AccountServiceTest {
 
         when(currentUserService.isAdmin()).thenReturn(true);
 
-        Account account = createAccount(
-                AccountStatus.ACTIVE,
-                "5000.00"
-        );
+        Account account = createAccount(AccountStatus.ACTIVE, "5000.00");
 
         when(accountRepository.findById(1L))
                 .thenReturn(Optional.of(account));
@@ -338,10 +325,7 @@ class AccountServiceTest {
 
         authenticateAsCustomer();
 
-        Account account = createAccount(
-                AccountStatus.ACTIVE,
-                "5000.00"
-        );
+        Account account = createAccount(AccountStatus.ACTIVE, "5000.00");
 
         when(accountRepository.findByIdAndCustomerId(1L, 1L))
                 .thenReturn(Optional.of(account));
@@ -369,8 +353,11 @@ class AccountServiceTest {
 
 
 
+
     @Test
     void shouldSaveAccountForAuthenticatedCustomer() {
+
+        authenticateAsCustomer();
 
         Custumer customer = new Custumer();
         customer.setId(1L);
@@ -384,26 +371,103 @@ class AccountServiceTest {
         when(accountRepository.save(any(Account.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
-        AccountRequest request =
-                new AccountRequest(
-                        "1234",
-                        new BigDecimal("5000.00"),
-                        AccountType.SAVINGS,
-                        AccountStatus.ACTIVE,
-                        999L
-                );
+        AccountRequest request = new AccountRequest(
+                "1234",
+                AccountType.SAVINGS,
+                null
+        );
 
         Account result = accountService.save(request);
 
         assertEquals("1234", result.getAccountNumber());
-        assertEquals(new BigDecimal("5000.00"), result.getBalance());
+        assertEquals(BigDecimal.ZERO, result.getBalance());
         assertEquals(AccountType.SAVINGS, result.getAccountType());
         assertEquals(AccountStatus.ACTIVE, result.getStatus());
-
-
         assertEquals(customer, result.getCustomer());
 
         verify(accountRepository).save(any(Account.class));
+        verify(custumerRepository, never()).findById(anyLong());
+    }
+
+    @Test
+    void shouldSaveAccountForCustomerAsAdmin() {
+
+        when(currentUserService.isAdmin()).thenReturn(true);
+
+        Custumer customer = new Custumer();
+        customer.setId(2L);
+
+        when(accountRepository.existsByAccountNumber("5678"))
+                .thenReturn(false);
+
+        when(custumerRepository.findById(2L))
+                .thenReturn(Optional.of(customer));
+
+        when(accountRepository.save(any(Account.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        AccountRequest request = new AccountRequest(
+                "5678",
+                AccountType.CHECKING,
+                2L
+        );
+
+        Account result = accountService.save(request);
+
+        assertEquals("5678", result.getAccountNumber());
+        assertEquals(BigDecimal.ZERO, result.getBalance());
+        assertEquals(AccountType.CHECKING, result.getAccountType());
+        assertEquals(AccountStatus.ACTIVE, result.getStatus());
+        assertEquals(customer, result.getCustomer());
+
+        verify(custumerRepository).findById(2L);
+        verify(accountRepository).save(any(Account.class));
+        verify(currentUserService, never()).getCurrentUser();
+    }
+
+    @Test
+    void shouldNotSaveAccountAsAdminWithoutCustomerId() {
+
+        when(currentUserService.isAdmin()).thenReturn(true);
+
+        AccountRequest request = new AccountRequest(
+                "5678",
+                AccountType.CHECKING,
+                null
+        );
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> accountService.save(request)
+        );
+
+        verify(accountRepository, never()).save(any(Account.class));
+        verify(custumerRepository, never()).findById(anyLong());
+    }
+
+    @Test
+    void shouldNotSaveAccountWhenAdminCustomerDoesNotExist() {
+
+        when(currentUserService.isAdmin()).thenReturn(true);
+
+        when(accountRepository.existsByAccountNumber("5678"))
+                .thenReturn(false);
+
+        when(custumerRepository.findById(2L))
+                .thenReturn(Optional.empty());
+
+        AccountRequest request = new AccountRequest(
+                "5678",
+                AccountType.CHECKING,
+                2L
+        );
+
+        assertThrows(
+                ResourceNotFoundException.class,
+                () -> accountService.save(request)
+        );
+
+        verify(accountRepository, never()).save(any(Account.class));
     }
 
     @Test
@@ -412,14 +476,11 @@ class AccountServiceTest {
         when(accountRepository.existsByAccountNumber("1234"))
                 .thenReturn(true);
 
-        AccountRequest request =
-                new AccountRequest(
-                        "1234",
-                        new BigDecimal("5000.00"),
-                        AccountType.SAVINGS,
-                        AccountStatus.ACTIVE,
-                        1L
-                );
+        AccountRequest request = new AccountRequest(
+                "1234",
+                AccountType.SAVINGS,
+                null
+        );
 
         assertThrows(
                 AccountNumberAlreadyExistsException.class,
@@ -428,19 +489,16 @@ class AccountServiceTest {
 
         verify(accountRepository, never()).save(any(Account.class));
         verify(currentUserService, never()).getCurrentUser();
+        verify(custumerRepository, never()).findById(anyLong());
     }
+
 
 
 
     @Test
     void shouldUpdateAccountType() {
 
-        Account account = createAccount(
-                AccountStatus.ACTIVE,
-                "5000.00"
-        );
-
-        account.setAccountType(AccountType.CHECKING);
+        Account account = createAccount(AccountStatus.ACTIVE, "5000.00");
 
         when(accountRepository.findById(1L))
                 .thenReturn(Optional.of(account));
@@ -477,10 +535,7 @@ class AccountServiceTest {
     @Test
     void shouldDeleteAccount() {
 
-        Account account = createAccount(
-                AccountStatus.ACTIVE,
-                "5000.00"
-        );
+        Account account = createAccount(AccountStatus.ACTIVE, "5000.00");
 
         when(accountRepository.findById(1L))
                 .thenReturn(Optional.of(account));
@@ -507,13 +562,11 @@ class AccountServiceTest {
 
 
 
+
     @Test
     void shouldUpdateAccountStatus() {
 
-        Account account = createAccount(
-                AccountStatus.BLOCKED,
-                "5000.00"
-        );
+        Account account = createAccount(AccountStatus.BLOCKED, "5000.00");
 
         when(accountRepository.findById(1L))
                 .thenReturn(Optional.of(account));
@@ -537,6 +590,7 @@ class AccountServiceTest {
                 () -> accountService.updateStatus(1L, AccountStatus.ACTIVE)
         );
     }
+
 
 
 

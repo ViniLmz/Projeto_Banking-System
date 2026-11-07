@@ -1,7 +1,7 @@
 
 package com.bank_project.transfer;
 
-import com.bank_project.account.Account;
+import com.bank_project.account.domain.Account;
 import jakarta.persistence.*;
 
 import java.math.BigDecimal;

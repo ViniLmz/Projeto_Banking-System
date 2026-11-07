@@ -1,5 +1,6 @@
-package com.bank_project.account;
+package com.bank_project.account.infra;
 
+import com.bank_project.account.domain.Account;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;

@@ -1,6 +1,6 @@
 package com.bank_project.custumer;
 
-import com.bank_project.account.Account;
+import com.bank_project.account.domain.Account;
 import jakarta.persistence.*;
 
 import jakarta.validation.constraints.Email;

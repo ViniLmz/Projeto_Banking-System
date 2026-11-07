@@ -1,6 +1,6 @@
 package com.bank_project.loan;
 
-import com.bank_project.account.Account;
+import com.bank_project.account.domain.Account;
 import com.bank_project.custumer.Custumer;
 import jakarta.persistence.*;
 

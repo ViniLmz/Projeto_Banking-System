@@ -2,6 +2,7 @@ package com.bank_project.custumer;
 
 import com.bank_project.exception.CpfAlreadyExistsException;
 import com.bank_project.exception.ResourceNotFoundException;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -9,7 +10,10 @@ import java.util.List;
 import java.util.Optional;
 
 
+
+
 @Service
+@PreAuthorize("hasRole('ADMIN')")
 public class CustomerService {
 
     private final   CustumerRepository custumerRepository;

@@ -1,5 +1,8 @@
 package com.bank_project.account;
 
+import com.bank_project.account.domain.Account;
+import com.bank_project.account.domain.AccountStatus;
+import com.bank_project.account.infra.AccountRepository;
 import com.bank_project.exception.*;
 import com.bank_project.transfer.Transfer;
 import com.bank_project.transfer.TransferRepository;

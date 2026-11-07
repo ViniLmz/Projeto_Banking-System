@@ -1,8 +1,8 @@
 
 package com.bank_project.account;
-import com.bank_project.account.Account;
-import com.bank_project.account.AccountRepository;
-import com.bank_project.account.AccountStatus;
+import com.bank_project.account.domain.Account;
+import com.bank_project.account.domain.AccountStatus;
+import com.bank_project.account.infra.AccountRepository;
 import com.bank_project.custumer.Custumer;
 import com.bank_project.custumer.CustumerRepository;
 import com.bank_project.exception.InvalidLoanStatusException;
@@ -532,7 +532,7 @@ class LoanServiceTest {
     }
 
 
-   
+
 
     private Loan createPendingLoan() {
 

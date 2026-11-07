@@ -1,5 +1,6 @@
 package com.bank_project.account;
 
+import com.bank_project.account.domain.Account;
 import com.bank_project.auth.JwtService;
 import com.bank_project.exception.IdempotencyKeyConflictException;
 import com.bank_project.transfer.Transfer;

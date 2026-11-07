@@ -1,8 +1,8 @@
 package com.bank_project.repository;
 
-import com.bank_project.account.Account;
-import com.bank_project.account.AccountRepository;
-import com.bank_project.account.AccountStatus;
+import com.bank_project.account.domain.Account;
+import com.bank_project.account.infra.AccountRepository;
+import com.bank_project.account.domain.AccountStatus;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;

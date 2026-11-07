@@ -1,4 +1,4 @@
-package com.bank_project.account;
+package com.bank_project.account.domain;
 
 import com.bank_project.custumer.Custumer;
 
@@ -57,6 +57,8 @@ public  Account  (Long id, String accountNumber, BigDecimal balance,AccountType 
     this.accountType = accountType;
     this.status = status;
 }
+
+
 
 public  Account (){}
 

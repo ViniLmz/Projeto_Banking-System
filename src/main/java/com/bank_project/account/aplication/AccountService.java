@@ -1,21 +1,28 @@
-package com.bank_project.account;
+package com.bank_project.account.aplication;
 
-import com.bank_project.exception.AccountNumberAlreadyExistsException;
-import com.bank_project.exception.BlockedAccountException;
+import com.bank_project.account.domain.Account;
+import com.bank_project.account.domain.AccountStatus;
+import com.bank_project.account.http.AccountRequest;
+import com.bank_project.account.http.AccountUpdateRequest;
+import com.bank_project.account.http.TransactionRequest;
+import com.bank_project.account.infra.AccountRepository;
 import com.bank_project.custumer.Custumer;
 import com.bank_project.custumer.CustumerRepository;
+import com.bank_project.exception.AccountNumberAlreadyExistsException;
+import com.bank_project.exception.BlockedAccountException;
+import com.bank_project.exception.InsufficientBalanceException;
+import com.bank_project.exception.ResourceNotFoundException;
 import com.bank_project.user.CurrentUserService;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import com.bank_project.exception.ResourceNotFoundException;
-import com.bank_project.exception.InsufficientBalanceException;
+
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
-
 @Service
-public class AccountService {
+public  class AccountService {
 
     private final AccountRepository accountRepository;
     private final CustumerRepository custumerRepository;
@@ -72,16 +79,34 @@ public class AccountService {
             throw new AccountNumberAlreadyExistsException("Account number already exists");
         }
 
+        Custumer customer;
+
+        if (currentUserService.isAdmin()) {
+
+            if (request.customerId() == null) {
+                throw new IllegalArgumentException("Customer ID is required for administrators");
+            }
+
+            customer = custumerRepository.findById(request.customerId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Customer not found"));
+
+        } else {
+            customer = currentUserService.getCurrentUser().getCustomer();
+
+            if (customer == null) {
+                throw new ResourceNotFoundException("Customer not found for authenticated user");
+            }
+        }
+
         Account account = new Account(
                 null,
                 request.accountNumber(),
-                request.balance(),
+                BigDecimal.ZERO,
                 request.accountType(),
-                request.status()
+                AccountStatus.ACTIVE
         );
 
-        Custumer custumer = currentUserService.getCurrentUser().getCustomer();
-        account.setCustomer(custumer);
+        account.setCustomer(customer);
 
         return accountRepository.save(account);
     }
@@ -147,23 +172,19 @@ public class AccountService {
         return accountRepository.save(account);
     }
 
-                @Transactional
-                @PreAuthorize("hasRole('ADMIN')")
-                public Account updateStatus(Long id, AccountStatus status) {
+    @Transactional
+    @PreAuthorize("hasRole('ADMIN')")
+    public Account updateStatus(Long id, AccountStatus status) {
 
-                    Account account = accountRepository.findById(id)
-                            .orElseThrow(() ->
-                                    new ResourceNotFoundException(
-                                            "Account not found with id: " + id));
+        Account account = accountRepository.findById(id)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Account not found with id: " + id));
 
-                    account.setStatus(status);
+        account.setStatus(status);
 
-                    return account;
-                }
+        return account;
+    }
 
 
 }
-
-
-
-

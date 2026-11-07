@@ -3,14 +3,15 @@ package com.bank_project.account;
 import com.bank_project.custumer.Custumer;
 import com.bank_project.custumer.CustumerRepository;
 import com.bank_project.exception.AccountNumberAlreadyExistsException;
+import com.bank_project.exception.BlockedAccountException;
 import com.bank_project.exception.InsufficientBalanceException;
 import com.bank_project.exception.ResourceNotFoundException;
+import com.bank_project.user.AppUser;
+import com.bank_project.user.CurrentUserService;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.never;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -20,12 +21,9 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
-import com.bank_project.exception.BlockedAccountException;
-
-
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class AccountServiceTest {
@@ -36,272 +34,55 @@ class AccountServiceTest {
     @Mock
     private CustumerRepository custumerRepository;
 
+    @Mock
+    private CurrentUserService currentUserService;
+
+    @Mock
+    private AppUser appUser;
+
     @InjectMocks
     private AccountService accountService;
 
+
+
     @Test
-    void testDeposit() {
-        Account account = new Account();
-        account.setId(1L);
-        account.setBalance(new BigDecimal("1000.00"));
-        when(accountRepository.findById(1L))
+    void shouldDepositSuccessfully() {
+
+        authenticateAsCustomer();
+
+        Account account = createAccount(
+                AccountStatus.ACTIVE,
+                "1000.00"
+        );
+
+        when(accountRepository.findByIdAndCustomerId(1L, 1L))
                 .thenReturn(Optional.of(account));
 
         TransactionRequest request =
                 new TransactionRequest(new BigDecimal("500.00"));
 
-        accountService.deposit(1l, request);
-        assertEquals(
-                new BigDecimal("1500.00"),
-                account.getBalance()
-        );
-    }
+        when(accountRepository.save(any(Account.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
 
+        Account result = accountService.deposit(1L, request);
 
-    @Test
-    void testDepositBlockedAccount(){
-        Account account = new Account();
-        account.setId(1l);
-        account.setStatus(AccountStatus.BLOCKED);
-        account.setBalance(new BigDecimal("1000.00"));
-        when(accountRepository.findById(1l)).thenReturn(Optional.of(account));
-
-        TransactionRequest request =
-                new TransactionRequest(new BigDecimal("500.00"));
-        assertThrows(
-                BlockedAccountException.class,
-                ()->accountService.deposit(1l,request)
-        );
-    }
-
-    @Test
-    void testWithdraw(){
-        Account account = new Account();
-        account.setId(1l);
-        account.setBalance(new BigDecimal("1000.00"));
-        account.setStatus(AccountStatus.ACTIVE);
-
-
-        when(accountRepository.findById(1L))
-                .thenReturn(Optional.of(account));
-
-        TransactionRequest request = new TransactionRequest(new BigDecimal("500.00"));
-
-        accountService.withdraw(1l, request);
-
-        assertEquals(
-                new BigDecimal("500.00"),
-                account.getBalance());
-
-    }
-
-    @Test
-    void testWithdrawBlockedAccount() {
-        Account account = new Account();
-        account.setId(1L);
-        account.setBalance(new BigDecimal("1000.00"));
-        account.setStatus(AccountStatus.BLOCKED);
-
-        when(accountRepository.findById(1L))
-                .thenReturn(Optional.of(account));
-
-        TransactionRequest request =
-                new TransactionRequest(new BigDecimal("500.00"));
-
-        assertThrows(
-                BlockedAccountException.class,
-                () -> accountService.withdraw(1L, request)
-        );
-    }
-
-    @Test
-    void testDepositAccountNotFound() {
-        when(accountRepository.findById(1l))
-                .thenReturn(Optional.empty());
-
-        TransactionRequest request = new TransactionRequest(new BigDecimal("500.00"));
-
-        assertThrows(ResourceNotFoundException.class, () -> accountService.deposit(1l, request));
-    }
-
-    @Test
-    void testWithdrawAccountNotFound() {
-
-        when(accountRepository.findById(1l))
-                .thenReturn(Optional.empty());
-
-        TransactionRequest request = new TransactionRequest(new BigDecimal("500.00"));
-
-        assertThrows(ResourceNotFoundException.class,
-                ()-> accountService.withdraw(1l, request));
-
-    }
-    @Test
-    void testWithdrawInsufficientBalance() {
-
-        Account account = new Account();
-        account.setId(1L);
-        account.setBalance(new BigDecimal("500.00"));
-        account.setStatus(AccountStatus.ACTIVE);
-
-        when(accountRepository.findById(1L))
-                .thenReturn(Optional.of(account));
-
-        TransactionRequest request =
-                new TransactionRequest(new BigDecimal("1000.00"));
-
-        assertThrows(
-                InsufficientBalanceException.class,
-                () -> accountService.withdraw(1L, request)
-        );
-    }
-
-    @Test
-    void testWithdrawSavesAccount() {
-
-        Account account = new Account();
-        account.setId(1L);
-        account.setBalance(new BigDecimal("1500.00"));
-        account.setStatus(AccountStatus.ACTIVE);
-
-        when(accountRepository.findById(1L))
-                .thenReturn(Optional.of(account));
-
-        TransactionRequest request =
-                new TransactionRequest(new BigDecimal("1000.00"));
-
-        accountService.withdraw(1L, request);
+        assertEquals(new BigDecimal("1500.00"), result.getBalance());
 
         verify(accountRepository).save(account);
     }
 
     @Test
-    void testDepositSavesAccount() {
+    void shouldNotDepositIntoBlockedAccount() {
 
-        Account account = new Account();
-        account.setId(1L);
-        account.setBalance(new BigDecimal("500.00"));
-        account.setStatus(AccountStatus.ACTIVE);
+        authenticateAsCustomer();
 
-        when(accountRepository.findById(1L))
-                .thenReturn(Optional.of(account));
-
-        TransactionRequest request =
-                new TransactionRequest(new BigDecimal("1000.00"));
-
-        accountService.deposit(1l, request);
-
-        verify(accountRepository).save(account);
-
-    }
-
-    @Test
-    void testDepositSavesCorrectBalance(){
-
-        Account account = new Account();
-        account.setId(1l);
-        account.setBalance(new BigDecimal("1000.00"));
-        account.setStatus(AccountStatus.ACTIVE);
-
-        when(accountRepository.findById(1l))
-                .thenReturn(Optional.of(account));
-
-        TransactionRequest request =
-                new TransactionRequest(new BigDecimal("4000.00"));
-
-        accountService.deposit(1l, request);
-
-        ArgumentCaptor<Account> captor =
-                ArgumentCaptor.forClass(Account.class);
-
-        verify(accountRepository).save(captor.capture());
-
-        Account accountSaved = captor.getValue();
-
-        assertEquals(new BigDecimal("5000.00"), accountSaved.getBalance());
-
-    }
-
-    @Test
-    void testWithdrawSavesCorrectBalance(){
-
-        Account account = new Account();
-        account.setId(1l);
-        account.setBalance(new BigDecimal("5000.00"));
-        account.setStatus(AccountStatus.ACTIVE);
-
-        when(accountRepository.findById(1l))
-                .thenReturn(Optional.of(account));
-
-        TransactionRequest request = new TransactionRequest(new BigDecimal("1000.00"));
-
-        accountService.withdraw(1L,request);
-
-            ArgumentCaptor<Account> captor =
-                ArgumentCaptor.forClass(Account.class);
-
-        verify(accountRepository).save(captor.capture());
-
-        Account accountSaved = captor.getValue();
-
-        assertEquals(new BigDecimal("4000.00"), accountSaved.getBalance());
-
-
-    }
-    @Test
-    void testWithdrawBlockedAccountDoesNotSave() {
-
-        Account account = new Account();
-        account.setId(1L);
-        account.setBalance(new BigDecimal("5000.00"));
-        account.setStatus(AccountStatus.BLOCKED);
-
-        when(accountRepository.findById(1L))
-                .thenReturn(Optional.of(account));
-
-        TransactionRequest request =
-                new TransactionRequest(new BigDecimal("1000.00"));
-
-        assertThrows(
-                BlockedAccountException.class,
-                () -> accountService.withdraw(1L, request)
+        Account account = createAccount(
+                AccountStatus.BLOCKED,
+                "1000.00"
         );
 
-        verify(accountRepository, never()).save(account);
-    }
-
-    @Test
-    void testWithdrawInsufficientBalanceDoesNotSave() {
-
-        Account account = new Account();
-        account.setId(1L);
-        account.setBalance(new BigDecimal("500.00"));
-        account.setStatus(AccountStatus.ACTIVE);
-
-        when(accountRepository.findById(1L))
+        when(accountRepository.findByIdAndCustomerId(1L, 1L))
                 .thenReturn(Optional.of(account));
-
-        TransactionRequest request =
-                new TransactionRequest(new BigDecimal("1000.00"));
-
-        assertThrows(
-                InsufficientBalanceException.class,
-                () -> accountService.withdraw(1L, request)
-        );
-
-        verify(accountRepository, never()).save(account);
-    }
-
-    @Test
-    void testDepositBlockedAccountDoesNotSave(){
-
-         Account account = new Account();
-         account.setId(1l);
-         account.setBalance(new BigDecimal("500.00"));
-         account.setStatus(AccountStatus.BLOCKED);
-
-         when(accountRepository.findById(1l))
-                 .thenReturn(Optional.of(account));
 
         TransactionRequest request =
                 new TransactionRequest(new BigDecimal("500.00"));
@@ -311,65 +92,291 @@ class AccountServiceTest {
                 () -> accountService.deposit(1L, request)
         );
 
-        verify(accountRepository, never()).save(account);
-
+        verify(accountRepository, never()).save(any(Account.class));
     }
 
     @Test
-    void testFindAll(){
-        Account account= new Account();
-        account.setId(1l);
-        account.setStatus(AccountStatus.ACTIVE);
-        account.setBalance(new BigDecimal("5000.00"));
+    void shouldNotDepositWhenAccountDoesNotBelongToCustomer() {
 
-        List<Account> accounts = List.of(account);
+        authenticateAsCustomer();
 
-        when(accountRepository.findAll())
+        when(accountRepository.findByIdAndCustomerId(1L, 1L))
+                .thenReturn(Optional.empty());
+
+        TransactionRequest request =
+                new TransactionRequest(new BigDecimal("500.00"));
+
+        assertThrows(
+                ResourceNotFoundException.class,
+                () -> accountService.deposit(1L, request)
+        );
+
+        verify(accountRepository, never()).save(any(Account.class));
+    }
+
+    @Test
+    void shouldSaveCorrectBalanceAfterDeposit() {
+
+        authenticateAsCustomer();
+
+        Account account = createAccount(
+                AccountStatus.ACTIVE,
+                "1000.00"
+        );
+
+        when(accountRepository.findByIdAndCustomerId(1L, 1L))
+                .thenReturn(Optional.of(account));
+
+        TransactionRequest request =
+                new TransactionRequest(new BigDecimal("4000.00"));
+
+        accountService.deposit(1L, request);
+
+        ArgumentCaptor<Account> captor =
+                ArgumentCaptor.forClass(Account.class);
+
+        verify(accountRepository).save(captor.capture());
+
+        assertEquals(
+                new BigDecimal("5000.00"),
+                captor.getValue().getBalance()
+        );
+    }
+
+
+
+    @Test
+    void shouldWithdrawSuccessfully() {
+
+        authenticateAsCustomer();
+
+        Account account = createAccount(
+                AccountStatus.ACTIVE,
+                "1000.00"
+        );
+
+        when(accountRepository.findByIdAndCustomerId(1L, 1L))
+                .thenReturn(Optional.of(account));
+
+        TransactionRequest request =
+                new TransactionRequest(new BigDecimal("500.00"));
+
+        when(accountRepository.save(any(Account.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        Account result = accountService.withdraw(1L, request);
+
+        assertEquals(new BigDecimal("500.00"), result.getBalance());
+
+        verify(accountRepository).save(account);
+    }
+
+    @Test
+    void shouldNotWithdrawFromBlockedAccount() {
+
+        authenticateAsCustomer();
+
+        Account account = createAccount(
+                AccountStatus.BLOCKED,
+                "1000.00"
+        );
+
+        when(accountRepository.findByIdAndCustomerId(1L, 1L))
+                .thenReturn(Optional.of(account));
+
+        TransactionRequest request =
+                new TransactionRequest(new BigDecimal("500.00"));
+
+        assertThrows(
+                BlockedAccountException.class,
+                () -> accountService.withdraw(1L, request)
+        );
+
+        verify(accountRepository, never()).save(any(Account.class));
+    }
+
+    @Test
+    void shouldNotWithdrawWithInsufficientBalance() {
+
+        authenticateAsCustomer();
+
+        Account account = createAccount(
+                AccountStatus.ACTIVE,
+                "500.00"
+        );
+
+        when(accountRepository.findByIdAndCustomerId(1L, 1L))
+                .thenReturn(Optional.of(account));
+
+        TransactionRequest request =
+                new TransactionRequest(new BigDecimal("1000.00"));
+
+        assertThrows(
+                InsufficientBalanceException.class,
+                () -> accountService.withdraw(1L, request)
+        );
+
+        verify(accountRepository, never()).save(any(Account.class));
+    }
+
+    @Test
+    void shouldSaveCorrectBalanceAfterWithdraw() {
+
+        authenticateAsCustomer();
+
+        Account account = createAccount(
+                AccountStatus.ACTIVE,
+                "5000.00"
+        );
+
+        when(accountRepository.findByIdAndCustomerId(1L, 1L))
+                .thenReturn(Optional.of(account));
+
+        TransactionRequest request =
+                new TransactionRequest(new BigDecimal("1000.00"));
+
+        accountService.withdraw(1L, request);
+
+        ArgumentCaptor<Account> captor =
+                ArgumentCaptor.forClass(Account.class);
+
+        verify(accountRepository).save(captor.capture());
+
+        assertEquals(
+                new BigDecimal("4000.00"),
+                captor.getValue().getBalance()
+        );
+    }
+
+    @Test
+    void shouldNotWithdrawWhenAccountDoesNotBelongToCustomer() {
+
+        authenticateAsCustomer();
+
+        when(accountRepository.findByIdAndCustomerId(1L, 1L))
+                .thenReturn(Optional.empty());
+
+        TransactionRequest request =
+                new TransactionRequest(new BigDecimal("500.00"));
+
+        assertThrows(
+                ResourceNotFoundException.class,
+                () -> accountService.withdraw(1L, request)
+        );
+
+        verify(accountRepository, never()).save(any(Account.class));
+    }
+
+
+
+    @Test
+    void shouldFindAllAccountsAsAdmin() {
+
+        when(currentUserService.isAdmin()).thenReturn(true);
+
+        List<Account> accounts = List.of(
+                createAccount(AccountStatus.ACTIVE, "5000.00"),
+                createAccount(AccountStatus.ACTIVE, "3000.00")
+        );
+
+        when(accountRepository.findAll()).thenReturn(accounts);
+
+        List<Account> result = accountService.findAll();
+
+        assertEquals(2, result.size());
+        assertEquals(accounts, result);
+
+        verify(accountRepository).findAll();
+        verify(accountRepository, never()).findAllByCustomerId(anyLong());
+    }
+
+    @Test
+    void shouldFindOnlyAuthenticatedCustomerAccounts() {
+
+        authenticateAsCustomer();
+
+        List<Account> accounts = List.of(
+                createAccount(AccountStatus.ACTIVE, "5000.00")
+        );
+
+        when(accountRepository.findAllByCustomerId(1L))
                 .thenReturn(accounts);
-
 
         List<Account> result = accountService.findAll();
 
         assertEquals(accounts, result);
 
+        verify(accountRepository).findAllByCustomerId(1L);
+        verify(accountRepository, never()).findAll();
     }
 
-    @Test
-    void testFindById(){
-        Account account = new Account();
-        account.setId(1l);
-        account.setStatus(AccountStatus.ACTIVE);
-        account.setBalance(new BigDecimal("5000.00"));
 
-        when(accountRepository.findById(1l)).thenReturn(Optional.of(account));
+
+    @Test
+    void shouldFindAccountByIdAsAdmin() {
+
+        when(currentUserService.isAdmin()).thenReturn(true);
+
+        Account account = createAccount(
+                AccountStatus.ACTIVE,
+                "5000.00"
+        );
+
+        when(accountRepository.findById(1L))
+                .thenReturn(Optional.of(account));
 
         Optional<Account> result = accountService.findById(1L);
-
 
         assertTrue(result.isPresent());
         assertEquals(account, result.get());
 
-        verify(accountRepository).findById(1l);
-
+        verify(accountRepository).findById(1L);
     }
 
     @Test
-    void testSaveAccount(){
-          Custumer custumer = new Custumer();
-        custumer.setId(1L);
+    void shouldFindAccountByIdForAuthenticatedCustomer() {
 
-        when(custumerRepository.findById(1L))
-                .thenReturn(Optional.of(custumer));
+        authenticateAsCustomer();
+
+        Account account = createAccount(
+                AccountStatus.ACTIVE,
+                "5000.00"
+        );
+
+        when(accountRepository.findByIdAndCustomerId(1L, 1L))
+                .thenReturn(Optional.of(account));
+
+        Optional<Account> result = accountService.findById(1L);
+
+        assertTrue(result.isPresent());
+        assertEquals(account, result.get());
+
+        verify(accountRepository).findByIdAndCustomerId(1L, 1L);
+    }
+
+    @Test
+    void shouldNotFindAnotherCustomersAccount() {
+
+        authenticateAsCustomer();
+
+        when(accountRepository.findByIdAndCustomerId(1L, 1L))
+                .thenReturn(Optional.empty());
+
+        Optional<Account> result = accountService.findById(1L);
+
+        assertTrue(result.isEmpty());
+    }
 
 
-        AccountRequest request =
-                new AccountRequest(
-                        "1234",
-                        new BigDecimal("5000.00"),
-                        AccountType.SAVINGS,
-                        AccountStatus.ACTIVE,
-                        1l);
 
+    @Test
+    void shouldSaveAccountForAuthenticatedCustomer() {
+
+        Custumer customer = new Custumer();
+        customer.setId(1L);
+
+        when(currentUserService.getCurrentUser()).thenReturn(appUser);
+        when(appUser.getCustomer()).thenReturn(customer);
 
         when(accountRepository.existsByAccountNumber("1234"))
                 .thenReturn(false);
@@ -377,58 +384,33 @@ class AccountServiceTest {
         when(accountRepository.save(any(Account.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
+        AccountRequest request =
+                new AccountRequest(
+                        "1234",
+                        new BigDecimal("5000.00"),
+                        AccountType.SAVINGS,
+                        AccountStatus.ACTIVE,
+                        999L
+                );
+
         Account result = accountService.save(request);
 
         assertEquals("1234", result.getAccountNumber());
         assertEquals(new BigDecimal("5000.00"), result.getBalance());
         assertEquals(AccountType.SAVINGS, result.getAccountType());
         assertEquals(AccountStatus.ACTIVE, result.getStatus());
-        assertEquals(custumer, result.getCustomer());
 
+
+        assertEquals(customer, result.getCustomer());
+
+        verify(accountRepository).save(any(Account.class));
     }
 
     @Test
-    void  testUpdate(){
-        Account account = new Account();
-        account.setId(1L);
-        account.setAccountType(AccountType.CHECKING);
-
-        when(accountRepository.findById(1L))
-                .thenReturn(Optional.of(account));
-
-           AccountUpdateRequest request = new AccountUpdateRequest(AccountType.SAVINGS);
-
-           Account result = accountService.update(1l, request);
-
-
-           assertEquals(AccountType.SAVINGS,result.getAccountType());
-           assertEquals(account, result);
-        verify(accountRepository).findById(1L);
-
-
-    }
-
-    @Test
-    void testDeleteById(){
-
-        when(accountRepository.existsById(1L))
-                .thenReturn(true);
-
-        accountService.delete(1L);
-
-        verify(accountRepository).existsById(1L);
-        verify(accountRepository).deleteById(1L);
-
-    }
-
-    @Test
-    void testClientNotFound() {
+    void shouldNotSaveAccountWithDuplicatedAccountNumber() {
 
         when(accountRepository.existsByAccountNumber("1234"))
-                .thenReturn(false);
-
-        when(custumerRepository.findById(1L))
-                .thenReturn(Optional.empty());
+                .thenReturn(true);
 
         AccountRequest request =
                 new AccountRequest(
@@ -440,35 +422,48 @@ class AccountServiceTest {
                 );
 
         assertThrows(
-                ResourceNotFoundException.class,
+                AccountNumberAlreadyExistsException.class,
                 () -> accountService.save(request)
         );
-    }
 
-    @Test
-    void testDuplicatedAccount(){
-        when(accountRepository.existsByAccountNumber("1234")).thenReturn(true);
-
-        AccountRequest request =
-                new AccountRequest(
-                        "1234",
-                        new BigDecimal("5000.00"),
-                        AccountType.SAVINGS,
-                        AccountStatus.ACTIVE,
-                        1L
-                );
-
-        assertThrows(AccountNumberAlreadyExistsException.class,()-> accountService.save(request));
         verify(accountRepository, never()).save(any(Account.class));
+        verify(currentUserService, never()).getCurrentUser();
+    }
 
+
+
+    @Test
+    void shouldUpdateAccountType() {
+
+        Account account = createAccount(
+                AccountStatus.ACTIVE,
+                "5000.00"
+        );
+
+        account.setAccountType(AccountType.CHECKING);
+
+        when(accountRepository.findById(1L))
+                .thenReturn(Optional.of(account));
+
+        AccountUpdateRequest request =
+                new AccountUpdateRequest(AccountType.SAVINGS);
+
+        Account result = accountService.update(1L, request);
+
+        assertEquals(AccountType.SAVINGS, result.getAccountType());
+        assertEquals(account, result);
+
+        verify(accountRepository).findById(1L);
     }
 
     @Test
-    void testUpdateAccountNotFound(){
+    void shouldNotUpdateAccountWhenNotFound() {
+
         when(accountRepository.findById(1L))
                 .thenReturn(Optional.empty());
 
-        AccountUpdateRequest request = new AccountUpdateRequest(AccountType.SAVINGS);
+        AccountUpdateRequest request =
+                new AccountUpdateRequest(AccountType.SAVINGS);
 
         assertThrows(
                 ResourceNotFoundException.class,
@@ -476,48 +471,89 @@ class AccountServiceTest {
         );
     }
 
-    @Test
-    void testDeleteAccountNotFound(){
-        when(accountRepository.existsById(1l)).thenReturn(false);
 
-        assertThrows(ResourceNotFoundException.class,
-                ()-> accountService.delete(1l));
 
-    }
 
     @Test
-    void testUpdateStatus(){
-        Account account = new Account();
-        account.setId(1L);
-        account.setAccountType(AccountType.CHECKING);
-        account.setStatus(AccountStatus.BLOCKED);
+    void shouldDeleteAccount() {
+
+        Account account = createAccount(
+                AccountStatus.ACTIVE,
+                "5000.00"
+        );
 
         when(accountRepository.findById(1L))
                 .thenReturn(Optional.of(account));
 
-        AccountStatus accountStatus = AccountStatus.ACTIVE;
+        accountService.delete(1L);
 
-        when(accountRepository.save(account))
-                .thenReturn(account);
+        verify(accountRepository).findById(1L);
+        verify(accountRepository).delete(account);
+    }
 
-        Account result = accountService.updateStatus(1L, accountStatus);
+    @Test
+    void shouldNotDeleteAccountWhenNotFound() {
+
+        when(accountRepository.findById(1L))
+                .thenReturn(Optional.empty());
+
+        assertThrows(
+                ResourceNotFoundException.class,
+                () -> accountService.delete(1L)
+        );
+
+        verify(accountRepository, never()).delete(any(Account.class));
+    }
+
+
+
+    @Test
+    void shouldUpdateAccountStatus() {
+
+        Account account = createAccount(
+                AccountStatus.BLOCKED,
+                "5000.00"
+        );
+
+        when(accountRepository.findById(1L))
+                .thenReturn(Optional.of(account));
+
+        Account result = accountService.updateStatus(
+                1L,
+                AccountStatus.ACTIVE
+        );
 
         assertEquals(AccountStatus.ACTIVE, result.getStatus());
     }
 
     @Test
-    void testUpdateStatusAccountNotFound(){
+    void shouldNotUpdateStatusWhenAccountNotFound() {
 
         when(accountRepository.findById(1L))
                 .thenReturn(Optional.empty());
 
-        AccountStatus accountStatus = AccountStatus.ACTIVE;
-
         assertThrows(
                 ResourceNotFoundException.class,
-                () -> accountService.updateStatus(1L, accountStatus)
+                () -> accountService.updateStatus(1L, AccountStatus.ACTIVE)
         );
     }
 
 
+
+    private void authenticateAsCustomer() {
+
+        when(currentUserService.isAdmin()).thenReturn(false);
+        when(currentUserService.getCurrentCustomerId()).thenReturn(1L);
+    }
+
+    private Account createAccount(AccountStatus status, String balance) {
+
+        Account account = new Account();
+
+        account.setId(1L);
+        account.setBalance(new BigDecimal(balance));
+        account.setStatus(status);
+
+        return account;
+    }
 }

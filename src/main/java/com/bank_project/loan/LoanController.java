@@ -22,14 +22,11 @@ public class LoanController {
 
 
     @Operation(
-            summary = "List of Loans ",
-            description = "Returns a list of loans registered in the system"
+            summary = "List Loans",
+            description = "Returns all loans for administrators. Customers can only view their own loans."
     )
     @ApiResponses(value = {
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "Loans found successfully"
-            ),
+            @ApiResponse(responseCode = "200", description = "Loans retrieved successfully")
     })
     @GetMapping
     public ResponseEntity<List<Loan>> getAll() {
@@ -142,19 +139,25 @@ public class LoanController {
 
     @Operation(
             summary = "Approve Loan",
-            description = "Deletes a accounts using their ID"
+            description = "Approves a pending loan and adds the loan amount to the associated account balance"
     )
-
     @ApiResponses(value = {
             @ApiResponse(
                     responseCode = "200",
-                    description = "Loan approved successfully"),
+                    description = "Loan approved successfully"
+            ),
             @ApiResponse(
-                    responseCode = "204",
-                    description = "Account deleted successfully"),
+                    responseCode = "403",
+                    description = "Only administrators can approve loans"
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Loan or associated account not found"
+            ),
             @ApiResponse(
                     responseCode = "422",
-                    description = "Loan is not pending")
+                    description = "Loan is not pending"
+            )
     })
     @PatchMapping("/{id}/approve")
     public ResponseEntity<Loan> approve(@PathVariable Long id) {
@@ -164,17 +167,27 @@ public class LoanController {
         return ResponseEntity.ok(loan);
     }
 
-    @Operation(summary = "Rejected loan")
+    @Operation(
+            summary = "Reject Loan",
+            description = "Rejects a pending loan. Only administrators can perform this operation."
+    )
     @ApiResponses(value = {
             @ApiResponse(
                     responseCode = "200",
-                    description = "Loan rejected successfully"),
+                    description = "Loan rejected successfully"
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "Only administrators can reject loans"
+            ),
             @ApiResponse(
                     responseCode = "404",
-                    description = "Loan not found"),
+                    description = "Loan not found"
+            ),
             @ApiResponse(
                     responseCode = "422",
-                    description = "Loan is not rejected")
+                    description = "Loan is not pending"
+            )
     })
     @PatchMapping("/{id}/reject")
     public ResponseEntity<Loan> reject (@PathVariable Long id){

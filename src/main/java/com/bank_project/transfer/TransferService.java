@@ -90,7 +90,7 @@ public class TransferService {
         Map<Long, Account> accountsById = lockedAccounts.stream()
                 .collect(Collectors.toMap(Account::getId, Function.identity()));
 
-        Account source = accountsById.get(request.sourceAccountId());
+            Account source = accountsById.get(request.sourceAccountId());
 
         if (source == null || (!currentUserService.isAdmin()
                 && !source.getCustomer().getId()
@@ -107,7 +107,6 @@ public class TransferService {
                     "Target account not found with id: " + request.targetAccountId());
         }
 
-        // 4. Validações da transferência.
         if (source.getId().equals(target.getId())) {
             throw new SameAccountTransferException(
                     "Source and target accounts must be different");
@@ -151,6 +150,8 @@ public class TransferService {
         if (currentUserService.isAdmin()) {
             return transferRepository.findAll();
         }
+
+
 
         Long customerId = currentUserService.getCurrentCustomerId();
 

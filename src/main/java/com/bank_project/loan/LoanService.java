@@ -6,6 +6,9 @@ import com.bank_project.custumer.Custumer;
 import com.bank_project.custumer.CustumerRepository;
 import com.bank_project.exception.InvalidLoanStatusException;
 import com.bank_project.exception.ResourceNotFoundException;
+import com.bank_project.user.CurrentUserService;
+
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,26 +23,53 @@ public class LoanService {
     private final LoanRepository loanRepository;
     private final CustumerRepository custumerRepository;
     private final AccountRepository accountRepository;
+    private final CurrentUserService currentUserService;
 
     public LoanService(
             LoanRepository loanRepository,
-            CustumerRepository custumerRepository, AccountRepository accountRepository
+            CustumerRepository custumerRepository,
+            AccountRepository accountRepository,
+            CurrentUserService currentUserService
     ) {
         this.loanRepository = loanRepository;
         this.custumerRepository = custumerRepository;
         this.accountRepository = accountRepository;
+        this.currentUserService = currentUserService;
     }
+
+
 
     public Loan save(LoanRequest request) {
 
-        Custumer customer = custumerRepository.findById(request.customerId())
+        Long customerId;
+
+        if (currentUserService.isAdmin()) {
+            customerId = request.customerId();
+        } else {
+            customerId = currentUserService.getCurrentCustomerId();
+        }
+
+        Custumer customer = custumerRepository.findById(customerId)
                 .orElseThrow(() ->
                         new ResourceNotFoundException("Customer not found")
                 );
-        Account account = accountRepository.findById(request.accountId())
-                .orElseThrow(() ->
-                        new ResourceNotFoundException("Account not found")
-                );
+
+        Account account;
+
+        if (currentUserService.isAdmin()) {
+            account = accountRepository.findById(request.accountId())
+                    .orElseThrow(() ->
+                            new ResourceNotFoundException("Account not found")
+                    );
+        } else {
+            account = accountRepository.findByIdAndCustomerId(
+                    request.accountId(),
+                    customerId
+            ).orElseThrow(() ->
+                    new ResourceNotFoundException("Account not found")
+            );
+        }
+
         if (!account.getCustomer().getId().equals(customer.getId())) {
             throw new ResourceNotFoundException(
                     "Account does not belong to customer"
@@ -57,57 +87,81 @@ public class LoanService {
                 LocalDateTime.now()
         );
 
-        loanRepository.save(loan);
-
-        return loan;
+        return loanRepository.save(loan);
     }
+
 
 
     public List<Loan> findAll() {
-        return loanRepository.findAll();
+
+        if (currentUserService.isAdmin()) {
+            return loanRepository.findAll();
+        }
+
+        Long customerId = currentUserService.getCurrentCustomerId();
+
+        return loanRepository.findByCustomerId(customerId);
     }
+
+
 
     public Optional<Loan> findById(Long id) {
 
-        return loanRepository.findById(id);
+        if (currentUserService.isAdmin()) {
+            return loanRepository.findById(id);
+        }
+
+        Long customerId = currentUserService.getCurrentCustomerId();
+
+        return loanRepository.findByIdAndCustomerId(id, customerId);
     }
 
+
+
+    @Transactional
     public Loan update(Long id, LoanUpdateRequest request) {
 
-        Loan loan = loanRepository.findById(id)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException("Loan not found")
-                );
+        Loan loan = findLoanForCurrentUserWithLock(id);
 
         if (!loan.getStatus().equals("PENDING")) {
             throw new InvalidLoanStatusException("Loan is not pending");
         }
-
 
         loan.setAmount(request.amount());
         loan.setInterestRate(request.interestRate());
         loan.setInstallments(request.installments());
 
-        loanRepository.save(loan);
-
-        return loan;
+        return loanRepository.save(loan);
     }
+
+
 
     @Transactional
     public void delete(Long id) {
 
-        Loan loan = loanRepository.findById(id)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException("Loan not found")
-                );
+        Loan loan = findLoanForCurrentUserWithLock(id);
+
+        if (!loan.getStatus().equals("PENDING")) {
+            throw new InvalidLoanStatusException(
+                    "Only pending loans can be deleted"
+            );
+        }
 
         loanRepository.delete(loan);
     }
 
+
+
     @Transactional
     public Loan approve(Long id) {
 
-        Loan loan = loanRepository.findById(id)
+        if (!currentUserService.isAdmin()) {
+            throw new AccessDeniedException(
+                    "Only administrators can approve loans"
+            );
+        }
+
+        Loan loan = loanRepository.findByIdWithLock(id)
                 .orElseThrow(() ->
                         new ResourceNotFoundException("Loan not found")
                 );
@@ -116,25 +170,37 @@ public class LoanService {
             throw new InvalidLoanStatusException("Loan is not pending");
         }
 
-        Account account = loan.getAccount();
+        Account account = accountRepository.findByIdWithLock(
+                loan.getAccount().getId()
+        ).orElseThrow(() ->
+                new ResourceNotFoundException("Account not found")
+        );
 
         BigDecimal newBalance =
                 account.getBalance().add(loan.getAmount());
 
         account.setBalance(newBalance);
 
-        accountRepository.save(account);
-
         loan.setStatus("APPROVED");
 
+        accountRepository.save(account);
         loanRepository.save(loan);
 
         return loan;
     }
 
+
+
+    @Transactional
     public Loan reject(Long id) {
 
-        Loan loan = loanRepository.findById(id)
+        if (!currentUserService.isAdmin()) {
+            throw new AccessDeniedException(
+                    "Only administrators can reject loans"
+            );
+        }
+
+        Loan loan = loanRepository.findByIdWithLock(id)
                 .orElseThrow(() ->
                         new ResourceNotFoundException("Loan not found")
                 );
@@ -145,8 +211,27 @@ public class LoanService {
 
         loan.setStatus("REJECTED");
 
-        loanRepository.save(loan);
+        return loanRepository.save(loan);
+    }
 
-        return loan;
+
+
+    private Loan findLoanForCurrentUserWithLock(Long id) {
+
+        if (currentUserService.isAdmin()) {
+            return loanRepository.findByIdWithLock(id)
+                    .orElseThrow(() ->
+                            new ResourceNotFoundException("Loan not found")
+                    );
+        }
+
+        Long customerId = currentUserService.getCurrentCustomerId();
+
+        return loanRepository.findByIdAndCustomerIdWithLock(
+                id,
+                customerId
+        ).orElseThrow(() ->
+                new ResourceNotFoundException("Loan not found")
+        );
     }
 }

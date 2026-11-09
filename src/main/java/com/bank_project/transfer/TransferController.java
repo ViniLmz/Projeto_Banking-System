@@ -17,9 +17,11 @@ import java.util.List;
 public class TransferController {
 
     private final TransferService transferService;
+    private final TransferMapper transferMapper;
 
-    public TransferController(TransferService transferService) {
+    public TransferController(TransferService transferService, TransferMapper transferMapper) {
         this.transferService = transferService;
+        this.transferMapper = transferMapper;
     }
 
 
@@ -39,13 +41,15 @@ public class TransferController {
                     description = "Insufficient balance or account cannot make the transfer")
     })
     @PostMapping
-    public ResponseEntity<Transfer> transfer(
+    public ResponseEntity<TransferResponse> transfer(
             @RequestHeader("Idempotency-Key") String idempotencyKey,
             @Valid @RequestBody TransferRequest request) {
 
         Transfer transfer = transferService.transfer(idempotencyKey, request);
 
-        return ResponseEntity.ok(transfer);
+        TransferResponse response = transferMapper.toResponse(transfer);
+
+        return ResponseEntity.ok(response);
     }
 
     @Operation(
@@ -59,8 +63,14 @@ public class TransferController {
             ),
     })
     @GetMapping
-    public ResponseEntity<List<Transfer>> findAll() {
-        return ResponseEntity.ok(transferService.findAll());
+    public ResponseEntity<List<TransferResponse>> findAll() {
+            List<TransferResponse> transfers =
+                        transferService.findAll()
+                        .stream()
+                        .map(transferMapper::toResponse)
+                        .toList();
+
+        return ResponseEntity.ok(transfers);
 }
 
 

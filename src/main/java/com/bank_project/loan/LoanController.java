@@ -15,9 +15,11 @@ import java.util.List;
 public class LoanController {
 
     private final LoanService loanService;
+    private final LoanMapper loanMapper;
 
-    public LoanController(LoanService loanService) {
+    public LoanController(LoanService loanService, LoanMapper loanMapper) {
         this.loanService = loanService;
+        this.loanMapper = loanMapper;
     }
 
 
@@ -29,10 +31,14 @@ public class LoanController {
             @ApiResponse(responseCode = "200", description = "Loans retrieved successfully")
     })
     @GetMapping
-    public ResponseEntity<List<Loan>> getAll() {
-        List<Loan> loans = loanService.findAll();
+    public ResponseEntity<List<LoanResponse>> getAll() {
 
-        return ResponseEntity.ok(loans);
+        List<LoanResponse> response = loanService.findAll()
+                .stream()
+                .map(loanMapper::toResponse)
+                .toList();
+
+        return ResponseEntity.ok(response);
     }
 
     @Operation(
@@ -54,11 +60,11 @@ public class LoanController {
             )
     })
     @GetMapping("/{id}")
-    public ResponseEntity<Loan> getId(@PathVariable Long id){
+    public ResponseEntity<LoanResponse> getId(@PathVariable Long id){
       return loanService.findById(id)
+              .map(loanMapper::toResponse)
               .map(ResponseEntity::ok)
               .orElse(ResponseEntity.notFound().build());
-
     }
 
     @Operation(
@@ -80,13 +86,15 @@ public class LoanController {
             ),
     })
     @PostMapping
-    public ResponseEntity<Loan> create(@Valid @RequestBody LoanRequest request) {
+    public ResponseEntity<LoanResponse> create(@Valid @RequestBody LoanRequest request) {
 
         Loan savedLoan = loanService.save(request);
 
+        LoanResponse response = loanMapper.toResponse(savedLoan);
+
         return ResponseEntity
                 .status(HttpStatus.CREATED)
-                .body(savedLoan);
+                .body(response);
     }
 
     @Operation(
@@ -108,13 +116,15 @@ public class LoanController {
             ),
     })
     @PutMapping("/{id}")
-    public ResponseEntity<Loan> update(
+    public ResponseEntity<LoanResponse> update(
             @PathVariable Long id,
             @Valid @RequestBody LoanUpdateRequest request) {
 
         Loan updatedLoan = loanService.update(id, request);
 
-        return ResponseEntity.ok(updatedLoan);
+        LoanResponse response = loanMapper.toResponse(updatedLoan);
+
+        return ResponseEntity.ok(response);
     }
 
     @Operation(
@@ -160,11 +170,13 @@ public class LoanController {
             )
     })
     @PatchMapping("/{id}/approve")
-    public ResponseEntity<Loan> approve(@PathVariable Long id) {
+    public ResponseEntity<LoanResponse> approve(@PathVariable Long id) {
 
         Loan loan = loanService.approve(id);
 
-        return ResponseEntity.ok(loan);
+        LoanResponse response = loanMapper.toResponse(loan);
+
+        return ResponseEntity.ok(response);
     }
 
     @Operation(
@@ -190,10 +202,12 @@ public class LoanController {
             )
     })
     @PatchMapping("/{id}/reject")
-    public ResponseEntity<Loan> reject (@PathVariable Long id){
+    public ResponseEntity<LoanResponse> reject (@PathVariable Long id){
         Loan loan = loanService.reject(id);
 
-        return ResponseEntity.ok(loan);
+        LoanResponse response = loanMapper.toResponse(loan);
+
+        return ResponseEntity.ok(response);
 
     }
 

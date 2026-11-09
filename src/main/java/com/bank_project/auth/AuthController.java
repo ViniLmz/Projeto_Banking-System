@@ -1,9 +1,11 @@
 
 package com.bank_project.auth;
 
+import com.bank_project.loan.LoanResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -26,10 +28,17 @@ public class AuthController {
                     description = "Login created successfully"),
     })
     @PostMapping("/login")
-    public  ResponseEntity<String> login(@RequestBody LoginRequest request){
+    public ResponseEntity<LoginResponse> login(
+            @Valid @RequestBody LoginRequest request) {
+
         String token = authService.login(request);
 
-        return  ResponseEntity.ok(token);
+        LoginResponse response = new LoginResponse(
+                token,
+                "Bearer"
+        );
+
+        return ResponseEntity.ok(response);
     }
 
 }

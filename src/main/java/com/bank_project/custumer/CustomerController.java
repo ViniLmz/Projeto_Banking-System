@@ -15,9 +15,11 @@ import java.util.List;
 @RequestMapping("/api/customers")
 public class CustomerController {
 
+    private final CustomerMapper customerMapper;
     private final CustomerService customerService;
 
-    public CustomerController(CustomerService customerService) {
+    public CustomerController(CustomerMapper customerMapper, CustomerService customerService) {
+        this.customerMapper = customerMapper;
         this.customerService = customerService;
     }
 
@@ -32,8 +34,14 @@ public class CustomerController {
             )
     })
     @GetMapping
-    public ResponseEntity<List<Custumer>> getAll() {
-        return ResponseEntity.ok(customerService.findAll());
+    public ResponseEntity<List<CustomerResponse>> getAll() {
+        List<CustomerResponse> customers =
+                customerService.findAll()
+                        .stream()
+                        .map(customerMapper::toResponse)
+                        .toList();
+
+        return ResponseEntity.ok(customers);
     }
 
     @Operation(
@@ -51,10 +59,12 @@ public class CustomerController {
             )
     })
     @GetMapping("/{id}")
-    public ResponseEntity<Custumer> getById(@PathVariable Long id) {
-        return customerService.findById(id).
-                map(ResponseEntity::ok).
-                orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<CustomerResponse> getById(@PathVariable Long id) {
+
+        return customerService.findById(id)
+                .map(customerMapper::toResponse)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 
     @Operation(
@@ -72,9 +82,16 @@ public class CustomerController {
             )
     })
     @PostMapping
-    public ResponseEntity<Custumer> create(@Valid @RequestBody Custumer custumer) {
-        Custumer savedCustomer = customerService.save(custumer);
-        return  ResponseEntity.status(HttpStatus.CREATED).body(savedCustomer);
+    public ResponseEntity<CustomerResponse> create(
+            @Valid @RequestBody CustomerRequest request) {
+
+        Custumer customer = customerMapper.toEntity(request);
+
+        Custumer savedCustomer = customerService.save(customer);
+
+        CustomerResponse response = customerMapper.toResponse(savedCustomer);
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
 
@@ -97,12 +114,17 @@ public class CustomerController {
             )
     })
     @PutMapping("/{id}")
-    public ResponseEntity<Custumer> update(
-       @PathVariable Long id,
-       @Valid @RequestBody Custumer custumer){
+    public ResponseEntity<CustomerResponse> update(
+            @PathVariable Long id,
+            @Valid @RequestBody CustomerRequest request) {
 
-        Custumer updateCustomer = customerService.update(id, custumer);
-        return ResponseEntity.ok(updateCustomer);
+        Custumer customer = customerMapper.toEntity(request);
+
+        Custumer updated = customerService.update(id, customer);
+
+        CustomerResponse response = customerMapper.toResponse(updated);
+
+        return ResponseEntity.ok(response);
     }
 
     @Operation(

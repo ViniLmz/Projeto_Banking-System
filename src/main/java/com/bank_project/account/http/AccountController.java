@@ -85,7 +85,7 @@ public class AccountController {
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)
-                .body(toResponse(accountSaved));
+                .body(accountMapper.toResponse(accountSaved));
     }
 
     @Operation(
@@ -106,7 +106,9 @@ public class AccountController {
 
         Account account = accountService.deposit(id, request);
 
-        return ResponseEntity.ok(toResponse(account));
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(accountMapper.toResponse(account));
     }
 
     @Operation(
@@ -127,7 +129,9 @@ public class AccountController {
 
         Account account = accountService.withdraw(id, request);
 
-        return ResponseEntity.ok(toResponse(account));
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(accountMapper.toResponse(account));
     }
 
     @Operation(
@@ -148,7 +152,9 @@ public class AccountController {
 
         Account account = accountService.update(id, request);
 
-        return ResponseEntity.ok(toResponse(account));
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(accountMapper.toResponse(account));
     }
 
     @Operation(
@@ -169,7 +175,9 @@ public class AccountController {
 
         Account account = accountService.updateStatus(id, request.status());
 
-        return ResponseEntity.ok(toResponse(account));
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(accountMapper.toResponse(account));
     }
 
     @Operation(

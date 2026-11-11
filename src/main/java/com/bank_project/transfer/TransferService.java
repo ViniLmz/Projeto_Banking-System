@@ -12,6 +12,7 @@ import com.bank_project.account.domain.Account;
 import com.bank_project.account.infra.AccountRepository;
 import com.bank_project.account.domain.AccountStatus;
 import com.bank_project.exception.*;
+import com.bank_project.ledger.LedgerService;
 import com.bank_project.user.CurrentUserService;
 
 import org.springframework.stereotype.Service;
@@ -23,14 +24,16 @@ public class TransferService {
     private final AccountRepository accountRepository;
     private final TransferRepository transferRepository;
     private final CurrentUserService currentUserService;
+    private final LedgerService ledgerService;
 
     public TransferService(
             AccountRepository accountRepository,
             TransferRepository transferRepository,
-            CurrentUserService currentUserService) {
+            CurrentUserService currentUserService, LedgerService ledgerService) {
         this.accountRepository = accountRepository;
         this.transferRepository = transferRepository;
         this.currentUserService = currentUserService;
+        this.ledgerService = ledgerService;
     }
 
     private Account findSourceAccountForCurrentUser(Long id) {
@@ -142,7 +145,11 @@ public class TransferService {
                 idempotencyKey
         );
 
-        return transferRepository.save(transfer);
+        Transfer savedTransfer = transferRepository.save(transfer);
+
+        ledgerService.recordTransfer(savedTransfer);
+
+        return savedTransfer;
     }
 
     public List<Transfer> findAll() {

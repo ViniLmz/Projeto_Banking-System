@@ -1,46 +1,48 @@
+
 package com.bank_project.exception;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-import java.util.Map;
 import java.util.HashMap;
-
-import org.springframework.web.bind.MethodArgumentNotValidException;
-
-
+import java.util.Map;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    @ExceptionHandler(ResourceNotFoundException.class)
-    public ResponseEntity<Map<String, Object>> handleResourceNotFound(
-            ResourceNotFoundException exception) {
+    private ResponseEntity<ErrorResponse> buildError(
+            HttpStatus status,
+            String message) {
 
-        Map<String, Object> body = Map.of(
-                "status", HttpStatus.NOT_FOUND.value(),
-                "message", exception.getMessage()
+        ErrorResponse response = new ErrorResponse(
+                status.value(),
+                message
         );
 
-        return ResponseEntity
-                .status(HttpStatus.NOT_FOUND)
-                .body(body);
+        return ResponseEntity.status(status).body(response);
+    }
+
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleResourceNotFound(
+            ResourceNotFoundException ex) {
+
+        return buildError(
+                HttpStatus.NOT_FOUND,
+                ex.getMessage()
+        );
     }
 
     @ExceptionHandler(InsufficientBalanceException.class)
-    public ResponseEntity<Map<String, Object>> handleInsufficientBalance(
-            InsufficientBalanceException exception) {
+    public ResponseEntity<ErrorResponse> handleInsufficientBalance(
+            InsufficientBalanceException ex) {
 
-        Map<String, Object> body = Map.of(
-                "status", HttpStatus.UNPROCESSABLE_ENTITY.value(),
-                "message", exception.getMessage()
+        return buildError(
+                HttpStatus.UNPROCESSABLE_ENTITY,
+                ex.getMessage()
         );
-
-        return ResponseEntity
-                .status(HttpStatus.UNPROCESSABLE_ENTITY)
-                .body(body);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -52,12 +54,15 @@ public class GlobalExceptionHandler {
         ex.getBindingResult()
                 .getFieldErrors()
                 .forEach(error ->
-                        errors.put(error.getField(), error.getDefaultMessage())
+                        errors.put(
+                                error.getField(),
+                                error.getDefaultMessage()
+                        )
                 );
 
         Map<String, Object> response = new HashMap<>();
 
-        response.put("status", 400);
+        response.put("status", HttpStatus.BAD_REQUEST.value());
         response.put("message", "Validation error");
         response.put("errors", errors);
 
@@ -65,76 +70,86 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(SameAccountTransferException.class)
-    public ResponseEntity<Map<String, Object>> handleSameAccountTransferException(
-              SameAccountTransferException ex) {
+    public ResponseEntity<ErrorResponse> handleSameAccountTransfer(
+            SameAccountTransferException ex) {
 
-        Map<String, Object> sameResponse = new HashMap<>();
-
-        sameResponse.put("status",400);
-        sameResponse.put("message", ex.getMessage());
-        return ResponseEntity.badRequest().body(sameResponse);
-
+        return buildError(
+                HttpStatus.BAD_REQUEST,
+                ex.getMessage()
+        );
     }
+
     @ExceptionHandler(BlockedAccountException.class)
-    public ResponseEntity<Map<String, Object>> handleBlockedAccountException(
+    public ResponseEntity<ErrorResponse> handleBlockedAccount(
             BlockedAccountException ex) {
-        Map<String, Object> blocked = new HashMap<>();
 
-        blocked.put("status",400);
-        blocked.put("message", ex.getMessage());
-        return ResponseEntity.badRequest().body(blocked);
+        return buildError(
+                HttpStatus.CONFLICT,
+                ex.getMessage()
+        );
     }
 
-      @ExceptionHandler(InvalidLoanStatusException.class)
-        public ResponseEntity<Map<String, Object>> handleInvalidLoanStatusException(
-              InvalidLoanStatusException ex) {
+    @ExceptionHandler(InvalidLoanStatusException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidLoanStatus(
+            InvalidLoanStatusException ex) {
 
-            Map<String, Object> loanException = new HashMap<>();
-
-          loanException.put("status", 400);
-          loanException.put("message", ex.getMessage());
-          return ResponseEntity.badRequest().body(loanException);
-      }
-
+        return buildError(
+                HttpStatus.CONFLICT,
+                ex.getMessage()
+        );
+    }
 
     @ExceptionHandler(AccountNumberAlreadyExistsException.class)
-    public ResponseEntity<Map<String, Object>> handleAccountNumberAlreadyExistsException(
+    public ResponseEntity<ErrorResponse> handleAccountNumberAlreadyExists(
             AccountNumberAlreadyExistsException ex) {
 
-        Map<String, Object> numberUsed = new HashMap<>();
-
-        numberUsed.put("status", 400);
-        numberUsed.put("message", ex.getMessage());
-        return ResponseEntity.badRequest().body(numberUsed);
-    }
-
-    @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<String> handleIllegalArgument(
-            IllegalArgumentException ex) {
-
-        return ResponseEntity
-                .badRequest()
-                .body(ex.getMessage());
-    }
-
-    @ExceptionHandler(CpfAlreadyExistsException.class)
-    public ResponseEntity<Map<String, Object>> handleCpfAlreadyExistsException(
-            CpfAlreadyExistsException ex) {
-
-        Map<String, Object> cpfUsed = new HashMap<>();
-
-        cpfUsed.put("status", 400);
-        cpfUsed.put("message", ex.getMessage());
-        return ResponseEntity.badRequest().body(cpfUsed);
+        return buildError(
+                HttpStatus.CONFLICT,
+                ex.getMessage()
+        );
     }
 
     @ExceptionHandler(IdempotencyKeyConflictException.class)
-    public ResponseEntity<String> handleIdempotencyKeyConflict(
+    public ResponseEntity<ErrorResponse> handleIdempotencyKeyConflict(
             IdempotencyKeyConflictException ex) {
 
-        return ResponseEntity
-                .status(HttpStatus.CONFLICT)
-                .body(ex.getMessage());
+        return buildError(
+                HttpStatus.CONFLICT,
+                ex.getMessage()
+        );
     }
 
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ErrorResponse> handleIllegalArgument(
+            IllegalArgumentException ex) {
+
+        return buildError(
+                HttpStatus.BAD_REQUEST,
+                ex.getMessage()
+        );
+    }
+
+    @ExceptionHandler({
+            CpfAlreadyExistsException.class,
+            EmailAlreadyExistsException.class,
+            UsernameAlreadyExistsException.class
+    })
+    public ResponseEntity<ErrorResponse> handleRegistrationConflict(
+            RuntimeException ex) {
+
+        return buildError(
+                HttpStatus.CONFLICT,
+                ex.getMessage()
+        );
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ErrorResponse> handleUnexpectedException(
+            Exception ex) {
+
+        return buildError(
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                "An unexpected error occurred"
+        );
+    }
 }

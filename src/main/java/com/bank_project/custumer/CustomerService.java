@@ -37,7 +37,7 @@ public class CustomerService {
     public Custumer save (Custumer custumer) {
 
         if(custumerRepository.existsByCpf(custumer.getCpf())){
-            throw new CpfAlreadyExistsException("CPF already exists");
+            throw new CpfAlreadyExistsException();
         }
 
         return custumerRepository.save(custumer);
@@ -63,7 +63,7 @@ public class CustomerService {
         }
 
         if (custumerRepository.existsByCpfAndIdNot(custumer.getCpf(), id)) {
-            throw new CpfAlreadyExistsException("CPF already exists");
+            throw new CpfAlreadyExistsException();
         }
 
         custumer.setId(id);

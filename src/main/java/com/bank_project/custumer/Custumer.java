@@ -19,9 +19,9 @@ public class Custumer {
     @NotBlank(message = "Please, enter the full name")
     private String name;
 
-    @NotBlank
     @Email
-    private String email;
+    @Column(unique = true)
+    private String email;;
 
     @Column(unique=true)
     @NotBlank

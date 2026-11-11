@@ -6,12 +6,15 @@ import com.bank_project.custumer.CustumerRepository;
 import com.bank_project.user.AppUser;
 import com.bank_project.user.AppUserRepository;
 import com.bank_project.user.UserRole;
+
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 @Configuration
+@Profile("!test")
 public class UserDataInitializer {
 
     @Bean

@@ -11,6 +11,7 @@ import java.util.stream.Collectors;
 import com.bank_project.account.domain.Account;
 import com.bank_project.account.infra.AccountRepository;
 import com.bank_project.account.domain.AccountStatus;
+import com.bank_project.audit.AuditLogService;
 import com.bank_project.exception.*;
 import com.bank_project.ledger.LedgerService;
 import com.bank_project.user.CurrentUserService;
@@ -25,15 +26,17 @@ public class TransferService {
     private final TransferRepository transferRepository;
     private final CurrentUserService currentUserService;
     private final LedgerService ledgerService;
+    private final AuditLogService auditLogService;
 
     public TransferService(
             AccountRepository accountRepository,
             TransferRepository transferRepository,
-            CurrentUserService currentUserService, LedgerService ledgerService) {
+            CurrentUserService currentUserService, LedgerService ledgerService, AuditLogService auditLogService) {
         this.accountRepository = accountRepository;
         this.transferRepository = transferRepository;
         this.currentUserService = currentUserService;
         this.ledgerService = ledgerService;
+        this.auditLogService = auditLogService;
     }
 
     private Account findSourceAccountForCurrentUser(Long id) {
@@ -148,6 +151,16 @@ public class TransferService {
         Transfer savedTransfer = transferRepository.save(transfer);
 
         ledgerService.recordTransfer(savedTransfer);
+
+        auditLogService.log(
+                "TRANSFER",
+                "TRANSFER",
+                savedTransfer.getId().toString(),
+                "Transfer from account "
+                        + source.getAccountNumber()
+                        + " to account "
+                        + target.getAccountNumber()
+        );
 
         return savedTransfer;
     }

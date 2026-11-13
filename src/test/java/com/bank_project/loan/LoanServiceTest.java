@@ -1,13 +1,14 @@
 
-package com.bank_project.account;
+package com.bank_project.loan;
+
 import com.bank_project.account.domain.Account;
 import com.bank_project.account.domain.AccountStatus;
 import com.bank_project.account.infra.AccountRepository;
+import com.bank_project.audit.AuditLogService;
 import com.bank_project.custumer.Custumer;
 import com.bank_project.custumer.CustumerRepository;
 import com.bank_project.exception.InvalidLoanStatusException;
 import com.bank_project.exception.ResourceNotFoundException;
-import com.bank_project.loan.*;
 import com.bank_project.user.CurrentUserService;
 
 import org.junit.jupiter.api.Test;
@@ -39,9 +40,11 @@ class LoanServiceTest {
     @Mock
     private CurrentUserService currentUserService;
 
+    @Mock
+    private AuditLogService auditLogService;
+
     @InjectMocks
     private LoanService loanService;
-
 
     @Test
     void shouldSaveLoanAsAdmin() {
@@ -108,7 +111,6 @@ class LoanServiceTest {
         when(loanRepository.save(any(Loan.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
-        // Mesmo enviando outro customerId, o Service usa o autenticado.
         LoanRequest request = new LoanRequest(
                 999L,
                 2L,
@@ -212,9 +214,6 @@ class LoanServiceTest {
         verify(loanRepository, never()).save(any(Loan.class));
     }
 
-
-
-
     @Test
     void shouldFindAllLoansAsAdmin() {
 
@@ -245,7 +244,6 @@ class LoanServiceTest {
         verify(loanRepository).findByCustomerId(1L);
         verify(loanRepository, never()).findAll();
     }
-
 
     @Test
     void shouldFindLoanByIdAsAdmin() {
@@ -282,9 +280,6 @@ class LoanServiceTest {
 
         verify(loanRepository).findByIdAndCustomerId(1L, 1L);
     }
-
-
-
 
     @Test
     void shouldUpdatePendingLoanAsAdmin() {
@@ -360,9 +355,6 @@ class LoanServiceTest {
         );
     }
 
-
-
-
     @Test
     void shouldDeletePendingLoanAsAdmin() {
 
@@ -414,9 +406,6 @@ class LoanServiceTest {
         verify(loanRepository, never()).delete(any(Loan.class));
     }
 
-
-
-
     @Test
     void shouldApproveLoanAndIncreaseAccountBalance() {
 
@@ -430,6 +419,9 @@ class LoanServiceTest {
         when(accountRepository.findByIdWithLock(1L))
                 .thenReturn(Optional.of(loan.getAccount()));
 
+        when(loanRepository.save(any(Loan.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
         Loan approvedLoan = loanService.approve(1L);
 
         assertEquals("APPROVED", approvedLoan.getStatus());
@@ -441,9 +433,13 @@ class LoanServiceTest {
 
         verify(accountRepository).save(loan.getAccount());
         verify(loanRepository).save(loan);
+        verify(auditLogService).log(
+                "LOAN_APPROVED",
+                "LOAN",
+                "1",
+                "Loan approved for customer 1"
+        );
     }
-
-
 
     @Test
     void shouldNotApproveLoanAsCustomer() {
@@ -456,6 +452,12 @@ class LoanServiceTest {
         );
 
         verify(loanRepository, never()).findByIdWithLock(anyLong());
+        verify(auditLogService, never()).log(
+                anyString(),
+                anyString(),
+                anyString(),
+                anyString()
+        );
     }
 
     @Test
@@ -475,10 +477,13 @@ class LoanServiceTest {
         );
 
         verify(accountRepository, never()).findByIdWithLock(anyLong());
+        verify(auditLogService, never()).log(
+                anyString(),
+                anyString(),
+                anyString(),
+                anyString()
+        );
     }
-
-
-
 
     @Test
     void shouldRejectPendingLoanAsAdmin() {
@@ -498,8 +503,13 @@ class LoanServiceTest {
         assertEquals("REJECTED", rejectedLoan.getStatus());
 
         verify(loanRepository).save(loan);
+        verify(auditLogService).log(
+                "LOAN_REJECTED",
+                "LOAN",
+                "1",
+                "Loan rejected for customer 1"
+        );
     }
-
 
     @Test
     void shouldNotRejectLoanAsCustomer() {
@@ -512,6 +522,12 @@ class LoanServiceTest {
         );
 
         verify(loanRepository, never()).findByIdWithLock(anyLong());
+        verify(auditLogService, never()).log(
+                anyString(),
+                anyString(),
+                anyString(),
+                anyString()
+        );
     }
 
     @Test
@@ -529,10 +545,14 @@ class LoanServiceTest {
                 InvalidLoanStatusException.class,
                 () -> loanService.reject(1L)
         );
+
+        verify(auditLogService, never()).log(
+                anyString(),
+                anyString(),
+                anyString(),
+                anyString()
+        );
     }
-
-
-
 
     private Loan createPendingLoan() {
 

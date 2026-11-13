@@ -1,13 +1,17 @@
+
 package com.bank_project.account;
 
 import com.bank_project.account.domain.Account;
 import com.bank_project.account.domain.AccountStatus;
 import com.bank_project.account.infra.AccountRepository;
+import com.bank_project.audit.AuditLogService;
 import com.bank_project.exception.*;
+import com.bank_project.ledger.LedgerService;
 import com.bank_project.transfer.Transfer;
 import com.bank_project.transfer.TransferRepository;
 import com.bank_project.transfer.TransferRequest;
 import com.bank_project.transfer.TransferService;
+import com.bank_project.user.CurrentUserService;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -17,19 +21,28 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class TransferServiceTest {
 
     private static final String IDEMPOTENCY_KEY = "transfer-test-123";
+
+    @Mock
+    private CurrentUserService currentUserService;
+
+    @Mock
+    private LedgerService ledgerService;
+
+    @Mock
+    private AuditLogService auditLogService;
 
     @Mock
     private AccountRepository accountRepository;
@@ -53,29 +66,33 @@ class TransferServiceTest {
                 IllegalArgumentException.class,
                 () -> transferService.transfer(null, request)
         );
+
         assertThrows(
                 IllegalArgumentException.class,
                 () -> transferService.transfer("   ", request)
         );
 
-        verifyNoInteractions(transferRepository, accountRepository);
+        verifyNoInteractions(
+                transferRepository,
+                accountRepository,
+                currentUserService,
+                ledgerService,
+                auditLogService
+        );
     }
 
     @Test
     void shouldThrowConflictWhenIdempotencyKeyIsUsedWithDifferentData() {
 
-        Account sourceAccount = new Account();
-        sourceAccount.setId(1L);
-
-        Account targetAccount = new Account();
-        targetAccount.setId(2L);
+        Account sourceAccount = createAccount(1L, "5000.00");
+        Account targetAccount = createAccount(2L, "1000.00");
 
         Transfer existingTransfer = new Transfer(
                 1L,
                 sourceAccount,
                 targetAccount,
                 new BigDecimal("1000.00"),
-                java.time.LocalDateTime.now(),
+                LocalDateTime.now(),
                 "COMPLETED",
                 IDEMPOTENCY_KEY
         );
@@ -86,6 +103,11 @@ class TransferServiceTest {
                 new BigDecimal("5000.00")
         );
 
+        when(currentUserService.isAdmin()).thenReturn(true);
+
+        when(accountRepository.findById(1L))
+                .thenReturn(Optional.of(sourceAccount));
+
         when(transferRepository.findByIdempotencyKey(IDEMPOTENCY_KEY))
                 .thenReturn(Optional.of(existingTransfer));
 
@@ -94,18 +116,17 @@ class TransferServiceTest {
                 () -> transferService.transfer(IDEMPOTENCY_KEY, request)
         );
 
-        verify(accountRepository, never()).findById(anyLong());
+        verify(accountRepository, never()).findAllByIdsWithLock(any());
         verify(accountRepository, never()).save(any());
         verify(transferRepository, never()).save(any());
+        verifyNoInteractions(ledgerService, auditLogService);
     }
+
     @Test
     void shouldReturnExistingTransferWhenIdempotencyKeyAlreadyExists() {
 
-        Account sourceAccount = new Account();
-        sourceAccount.setId(1L);
-
-        Account targetAccount = new Account();
-        targetAccount.setId(2L);
+        Account sourceAccount = createAccount(1L, "5000.00");
+        Account targetAccount = createAccount(2L, "1000.00");
 
         TransferRequest request = new TransferRequest(
                 1L,
@@ -118,41 +139,39 @@ class TransferServiceTest {
                 sourceAccount,
                 targetAccount,
                 new BigDecimal("1000.00"),
-                java.time.LocalDateTime.now(),
+                LocalDateTime.now(),
                 "COMPLETED",
                 IDEMPOTENCY_KEY
         );
 
+        when(currentUserService.isAdmin()).thenReturn(true);
+
+        when(accountRepository.findById(1L))
+                .thenReturn(Optional.of(sourceAccount));
+
         when(transferRepository.findByIdempotencyKey(IDEMPOTENCY_KEY))
                 .thenReturn(Optional.of(existingTransfer));
 
-        Transfer result = transferService.transfer(IDEMPOTENCY_KEY, request);
+        Transfer result = transferService.transfer(
+                IDEMPOTENCY_KEY,
+                request
+        );
 
         assertEquals(existingTransfer, result);
 
-        verify(accountRepository, never()).findById(anyLong());
+        verify(accountRepository, never()).findAllByIdsWithLock(any());
         verify(accountRepository, never()).save(any());
         verify(transferRepository, never()).save(any());
+        verifyNoInteractions(ledgerService, auditLogService);
     }
 
     @Test
     void testTransferInsufficientBalance() {
 
-        Account sourceAccount = new Account();
-        sourceAccount.setId(1L);
-        sourceAccount.setBalance(new BigDecimal("500.00"));
-        sourceAccount.setStatus(AccountStatus.ACTIVE);
+        Account sourceAccount = createAccount(1L, "500.00");
+        Account targetAccount = createAccount(2L, "1000.00");
 
-        Account targetAccount = new Account();
-        targetAccount.setId(2L);
-        targetAccount.setBalance(new BigDecimal("1000.00"));
-        targetAccount.setStatus(AccountStatus.ACTIVE);
-
-        when(accountRepository.findById(1L))
-                .thenReturn(Optional.of(sourceAccount));
-
-        when(accountRepository.findById(2L))
-                .thenReturn(Optional.of(targetAccount));
+        mockAdminTransfer(sourceAccount, targetAccount);
 
         TransferRequest request = new TransferRequest(
                 1L,
@@ -165,69 +184,72 @@ class TransferServiceTest {
                 () -> transferService.transfer(IDEMPOTENCY_KEY, request)
         );
 
-        assertEquals(new BigDecimal("500.00"), sourceAccount.getBalance());
-        assertEquals(new BigDecimal("1000.00"), targetAccount.getBalance());
+        assertEquals(
+                new BigDecimal("500.00"),
+                sourceAccount.getBalance()
+        );
+
+        assertEquals(
+                new BigDecimal("1000.00"),
+                targetAccount.getBalance()
+        );
 
         verify(transferRepository, never()).save(any());
+        verifyNoInteractions(ledgerService, auditLogService);
     }
 
     @Test
     void testTransferBlockedTargetAccount() {
 
-        Account sourceAccount = new Account();
-        sourceAccount.setId(1L);
-        sourceAccount.setBalance(new BigDecimal("5000.00"));
-        sourceAccount.setStatus(AccountStatus.ACTIVE);
+        Account sourceAccount = createAccount(1L, "5000.00");
+        Account targetAccount = createAccount(2L, "1000.00");
 
-        Account targetAccount = new Account();
-        targetAccount.setId(2L);
-        targetAccount.setBalance(new BigDecimal("1000.00"));
         targetAccount.setStatus(AccountStatus.BLOCKED);
 
-        when(accountRepository.findById(1L))
-                .thenReturn(Optional.of(sourceAccount));
-
-        when(accountRepository.findById(2L))
-                .thenReturn(Optional.of(targetAccount));
+        mockAdminTransfer(sourceAccount, targetAccount);
 
         TransferRequest request = new TransferRequest(
                 1L,
                 2L,
-                new BigDecimal("500")
+                new BigDecimal("500.00")
         );
 
         assertThrows(
                 BlockedAccountException.class,
                 () -> transferService.transfer(IDEMPOTENCY_KEY, request)
         );
+
+        verify(transferRepository, never()).save(any());
+        verifyNoInteractions(ledgerService, auditLogService);
     }
 
     @Test
     void testTransferSource2Source() {
 
-        Account sourceAccount = new Account();
-        sourceAccount.setId(1L);
-        sourceAccount.setBalance(new BigDecimal("5000.00"));
-        sourceAccount.setStatus(AccountStatus.ACTIVE);
+        Account sourceAccount = createAccount(1L, "5000.00");
 
-        when(accountRepository.findById(1L))
-                .thenReturn(Optional.of(sourceAccount));
+        mockAdminTransfer(sourceAccount, sourceAccount);
 
         TransferRequest request = new TransferRequest(
                 1L,
                 1L,
-                new BigDecimal("500")
+                new BigDecimal("500.00")
         );
 
         assertThrows(
                 SameAccountTransferException.class,
                 () -> transferService.transfer(IDEMPOTENCY_KEY, request)
         );
+
+        verify(transferRepository, never()).save(any());
+        verifyNoInteractions(ledgerService, auditLogService);
     }
 
     @Test
     void testTransferSourceAccountNotFound() {
 
+        when(currentUserService.isAdmin()).thenReturn(true);
+
         when(accountRepository.findById(1L))
                 .thenReturn(Optional.empty());
 
@@ -241,21 +263,24 @@ class TransferServiceTest {
                 ResourceNotFoundException.class,
                 () -> transferService.transfer(IDEMPOTENCY_KEY, request)
         );
+
+        verify(accountRepository, never()).findAllByIdsWithLock(any());
+        verify(transferRepository, never()).save(any());
+        verifyNoInteractions(ledgerService, auditLogService);
     }
 
     @Test
     void testTransferTargetAccountNotFound() {
 
-        Account sourceAccount = new Account();
-        sourceAccount.setId(1L);
-        sourceAccount.setBalance(new BigDecimal("5000.00"));
-        sourceAccount.setStatus(AccountStatus.ACTIVE);
+        Account sourceAccount = createAccount(1L, "5000.00");
+
+        when(currentUserService.isAdmin()).thenReturn(true);
 
         when(accountRepository.findById(1L))
                 .thenReturn(Optional.of(sourceAccount));
 
-        when(accountRepository.findById(2L))
-                .thenReturn(Optional.empty());
+        when(accountRepository.findAllByIdsWithLock(List.of(1L, 2L)))
+                .thenReturn(List.of(sourceAccount));
 
         TransferRequest request = new TransferRequest(
                 1L,
@@ -267,26 +292,20 @@ class TransferServiceTest {
                 ResourceNotFoundException.class,
                 () -> transferService.transfer(IDEMPOTENCY_KEY, request)
         );
+
+        verify(transferRepository, never()).save(any());
+        verifyNoInteractions(ledgerService, auditLogService);
     }
 
     @Test
     void testTransferBlockedAccount() {
 
-        Account accountSource = new Account();
-        accountSource.setId(1L);
-        accountSource.setBalance(new BigDecimal("5000.00"));
-        accountSource.setStatus(AccountStatus.BLOCKED);
+        Account sourceAccount = createAccount(1L, "5000.00");
+        Account targetAccount = createAccount(2L, "1000.00");
 
-        Account accountTarget = new Account();
-        accountTarget.setId(2L);
-        accountTarget.setStatus(AccountStatus.ACTIVE);
-        accountTarget.setBalance(new BigDecimal("1000.00"));
+        sourceAccount.setStatus(AccountStatus.BLOCKED);
 
-        when(accountRepository.findById(1L))
-                .thenReturn(Optional.of(accountSource));
-
-        when(accountRepository.findById(2L))
-                .thenReturn(Optional.of(accountTarget));
+        mockAdminTransfer(sourceAccount, targetAccount);
 
         TransferRequest request = new TransferRequest(
                 1L,
@@ -298,26 +317,19 @@ class TransferServiceTest {
                 BlockedAccountException.class,
                 () -> transferService.transfer(IDEMPOTENCY_KEY, request)
         );
+
+        verify(transferRepository, never()).save(any());
+        verifyNoInteractions(ledgerService, auditLogService);
     }
 
     @Test
     void testTransferSaved() {
 
-        Account sourceAccount = new Account();
-        sourceAccount.setId(1L);
-        sourceAccount.setBalance(new BigDecimal("5000.00"));
-        sourceAccount.setStatus(AccountStatus.ACTIVE);
+        Account sourceAccount = createAccount(1L, "5000.00");
+        Account targetAccount = createAccount(2L, "1000.00");
 
-        Account targetAccount = new Account();
-        targetAccount.setId(2L);
-        targetAccount.setBalance(new BigDecimal("1000.00"));
-        targetAccount.setStatus(AccountStatus.ACTIVE);
-
-        when(accountRepository.findById(1L))
-                .thenReturn(Optional.of(sourceAccount));
-
-        when(accountRepository.findById(2L))
-                .thenReturn(Optional.of(targetAccount));
+        mockAdminTransfer(sourceAccount, targetAccount);
+        mockSavedTransfer();
 
         TransferRequest request = new TransferRequest(
                 1L,
@@ -327,27 +339,25 @@ class TransferServiceTest {
 
         transferService.transfer(IDEMPOTENCY_KEY, request);
 
-        verify(transferRepository).save(any());
+        verify(transferRepository).save(any(Transfer.class));
+        verify(ledgerService).recordTransfer(any(Transfer.class));
+
+        verify(auditLogService).log(
+                eq("TRANSFER"),
+                eq("TRANSFER"),
+                eq("99"),
+                contains("Transfer from account")
+        );
     }
 
     @Test
     void testTransferSavedWithCorrectData() {
 
-        Account sourceAccount = new Account();
-        sourceAccount.setId(1L);
-        sourceAccount.setBalance(new BigDecimal("5000.00"));
-        sourceAccount.setStatus(AccountStatus.ACTIVE);
+        Account sourceAccount = createAccount(1L, "5000.00");
+        Account targetAccount = createAccount(2L, "1000.00");
 
-        Account targetAccount = new Account();
-        targetAccount.setId(2L);
-        targetAccount.setBalance(new BigDecimal("1000.00"));
-        targetAccount.setStatus(AccountStatus.ACTIVE);
-
-        when(accountRepository.findById(1L))
-                .thenReturn(Optional.of(sourceAccount));
-
-        when(accountRepository.findById(2L))
-                .thenReturn(Optional.of(targetAccount));
+        mockAdminTransfer(sourceAccount, targetAccount);
+        mockSavedTransfer();
 
         TransferRequest request = new TransferRequest(
                 1L,
@@ -366,27 +376,21 @@ class TransferServiceTest {
 
         assertEquals(sourceAccount, savedTransfer.getSourceAccount());
         assertEquals(targetAccount, savedTransfer.getTargetAccount());
-        assertEquals(new BigDecimal("500.00"), savedTransfer.getAmount());
+
+        assertEquals(
+                new BigDecimal("500.00"),
+                savedTransfer.getAmount()
+        );
     }
 
     @Test
     void testTransferSavedWithCompletedStatus() {
 
-        Account sourceAccount = new Account();
-        sourceAccount.setId(1L);
-        sourceAccount.setBalance(new BigDecimal("5000.00"));
-        sourceAccount.setStatus(AccountStatus.ACTIVE);
+        Account sourceAccount = createAccount(1L, "5000.00");
+        Account targetAccount = createAccount(2L, "1000.00");
 
-        Account targetAccount = new Account();
-        targetAccount.setId(2L);
-        targetAccount.setBalance(new BigDecimal("1000.00"));
-        targetAccount.setStatus(AccountStatus.ACTIVE);
-
-        when(accountRepository.findById(1L))
-                .thenReturn(Optional.of(sourceAccount));
-
-        when(accountRepository.findById(2L))
-                .thenReturn(Optional.of(targetAccount));
+        mockAdminTransfer(sourceAccount, targetAccount);
+        mockSavedTransfer();
 
         TransferRequest request = new TransferRequest(
                 1L,
@@ -409,21 +413,11 @@ class TransferServiceTest {
     @Test
     void testTransferSavedWithDate() {
 
-        Account sourceAccount = new Account();
-        sourceAccount.setId(1L);
-        sourceAccount.setBalance(new BigDecimal("5000.00"));
-        sourceAccount.setStatus(AccountStatus.ACTIVE);
+        Account sourceAccount = createAccount(1L, "5000.00");
+        Account targetAccount = createAccount(2L, "1000.00");
 
-        Account targetAccount = new Account();
-        targetAccount.setId(2L);
-        targetAccount.setBalance(new BigDecimal("1000.00"));
-        targetAccount.setStatus(AccountStatus.ACTIVE);
-
-        when(accountRepository.findById(1L))
-                .thenReturn(Optional.of(sourceAccount));
-
-        when(accountRepository.findById(2L))
-                .thenReturn(Optional.of(targetAccount));
+        mockAdminTransfer(sourceAccount, targetAccount);
+        mockSavedTransfer();
 
         TransferRequest request = new TransferRequest(
                 1L,
@@ -449,6 +443,8 @@ class TransferServiceTest {
         Transfer transfer1 = new Transfer();
         Transfer transfer2 = new Transfer();
 
+        when(currentUserService.isAdmin()).thenReturn(true);
+
         when(transferRepository.findAll())
                 .thenReturn(List.of(transfer1, transfer2));
 
@@ -462,6 +458,8 @@ class TransferServiceTest {
     @Test
     void testFindAllEmptyTransfer() {
 
+        when(currentUserService.isAdmin()).thenReturn(true);
+
         when(transferRepository.findAll())
                 .thenReturn(List.of());
 
@@ -473,11 +471,63 @@ class TransferServiceTest {
     @Test
     void testFindAllIsCallEmpty() {
 
+        when(currentUserService.isAdmin()).thenReturn(true);
+
         when(transferRepository.findAll())
                 .thenReturn(List.of());
 
         transferService.findAll();
 
         verify(transferRepository, times(1)).findAll();
+    }
+
+    private Account createAccount(Long id, String balance) {
+
+        Account account = new Account();
+
+        account.setId(id);
+        account.setBalance(new BigDecimal(balance));
+        account.setStatus(AccountStatus.ACTIVE);
+
+        return account;
+    }
+
+    private void mockAdminTransfer(Account source, Account target) {
+
+        when(currentUserService.isAdmin()).thenReturn(true);
+
+        when(accountRepository.findById(source.getId()))
+                .thenReturn(Optional.of(source));
+
+        List<Account> lockedAccounts;
+
+        if (source.getId().equals(target.getId())) {
+            lockedAccounts = List.of(source);
+        } else {
+            lockedAccounts = List.of(source, target);
+        }
+
+        when(accountRepository.findAllByIdsWithLock(
+                List.of(source.getId(), target.getId())
+        )).thenReturn(lockedAccounts);
+    }
+
+    private void mockSavedTransfer() {
+
+        when(transferRepository.save(any(Transfer.class)))
+                .thenAnswer(invocation -> {
+
+                    Transfer transfer = invocation.getArgument(0);
+
+                    return new Transfer(
+                            99L,
+                            transfer.getSourceAccount(),
+                            transfer.getTargetAccount(),
+                            transfer.getAmount(),
+                            transfer.getDate(),
+                            transfer.getStatus(),
+                            IDEMPOTENCY_KEY
+                    );
+                });
     }
 }

@@ -1,3 +1,4 @@
+
 package com.bank_project.account.aplication;
 
 import com.bank_project.account.domain.Account;
@@ -6,6 +7,7 @@ import com.bank_project.account.http.AccountRequest;
 import com.bank_project.account.http.AccountUpdateRequest;
 import com.bank_project.account.http.TransactionRequest;
 import com.bank_project.account.infra.AccountRepository;
+import com.bank_project.audit.AuditLogService;
 import com.bank_project.custumer.Custumer;
 import com.bank_project.custumer.CustumerRepository;
 import com.bank_project.exception.AccountNumberAlreadyExistsException;
@@ -22,17 +24,23 @@ import java.util.List;
 import java.util.Optional;
 
 @Service
-public  class AccountService {
+public class AccountService {
 
     private final AccountRepository accountRepository;
     private final CustumerRepository custumerRepository;
     private final CurrentUserService currentUserService;
+    private final AuditLogService auditLogService;
 
-
-    public AccountService(AccountRepository accountRepository, CustumerRepository custumerRepository, CurrentUserService currentUserService) {
+    public AccountService(
+            AccountRepository accountRepository,
+            CustumerRepository custumerRepository,
+            CurrentUserService currentUserService,
+            AuditLogService auditLogService
+    ) {
         this.accountRepository = accountRepository;
         this.custumerRepository = custumerRepository;
         this.currentUserService = currentUserService;
+        this.auditLogService = auditLogService;
     }
 
     private Account findAccountForCurrentUser(Long id) {
@@ -72,7 +80,7 @@ public  class AccountService {
         return accountRepository.findByIdAndCustomerId(id, customerId);
     }
 
-
+    @Transactional
     public Account save(AccountRequest request) {
 
         if (accountRepository.existsByAccountNumber(request.accountNumber())) {
@@ -108,7 +116,16 @@ public  class AccountService {
 
         account.setCustomer(customer);
 
-        return accountRepository.save(account);
+        Account savedAccount = accountRepository.save(account);
+
+        auditLogService.log(
+                "ACCOUNT_CREATED",
+                "ACCOUNT",
+                savedAccount.getId().toString(),
+                "Account created: " + savedAccount.getAccountNumber()
+        );
+
+        return savedAccount;
     }
 
     @Transactional
@@ -118,6 +135,13 @@ public  class AccountService {
         Account account = accountRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Account not found with id: " + id));
+
+        auditLogService.log(
+                "ACCOUNT_DELETED",
+                "ACCOUNT",
+                account.getId().toString(),
+                "Account deleted: " + account.getAccountNumber()
+        );
 
         accountRepository.delete(account);
     }
@@ -133,10 +157,19 @@ public  class AccountService {
 
         account.setAccountType(request.accountType());
 
+        auditLogService.log(
+                "ACCOUNT_UPDATED",
+                "ACCOUNT",
+                account.getId().toString(),
+                "Account type updated to: " + account.getAccountType()
+        );
+
         return account;
     }
 
 
+
+    @Transactional
     public Account deposit(Long id, TransactionRequest request) {
 
         Account account = findAccountForCurrentUser(id);
@@ -149,10 +182,22 @@ public  class AccountService {
                 account.getBalance().add(request.amount())
         );
 
-        return accountRepository.save(account);
+        Account savedAccount = accountRepository.save(account);
+
+        auditLogService.log(
+                "ACCOUNT_DEPOSIT",
+                "ACCOUNT",
+                savedAccount.getId().toString(),
+                "Deposit of " + request.amount()
+                        + " performed. New balance: " + savedAccount.getBalance()
+        );
+
+        return savedAccount;
     }
 
 
+
+    @Transactional
     public Account withdraw(Long id, TransactionRequest request) {
 
         Account account = findAccountForCurrentUser(id);
@@ -169,8 +214,20 @@ public  class AccountService {
                 account.getBalance().subtract(request.amount())
         );
 
-        return accountRepository.save(account);
+        Account savedWithdraw = accountRepository.save(account);
+
+        auditLogService.log(
+                "ACCOUNT_WITHDRAWAL",
+                "ACCOUNT",
+                savedWithdraw.getId().toString(),
+                "Withdrawal of " + request.amount()
+                        + " performed. New balance: " + savedWithdraw.getBalance()
+        );
+
+        return savedWithdraw;
     }
+
+
 
     @Transactional
     @PreAuthorize("hasRole('ADMIN')")
@@ -183,8 +240,14 @@ public  class AccountService {
 
         account.setStatus(status);
 
+        auditLogService.log(
+                "ACCOUNT_STATUS_UPDATED",
+                "ACCOUNT",
+                account.getId().toString(),
+                "Account status updated to: " + account.getStatus()
+        );
+
         return account;
     }
-
 
 }

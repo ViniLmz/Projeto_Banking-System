@@ -1,7 +1,9 @@
+
 package com.bank_project.loan;
 
 import com.bank_project.account.domain.Account;
 import com.bank_project.account.infra.AccountRepository;
+import com.bank_project.audit.AuditLogService;
 import com.bank_project.custumer.Custumer;
 import com.bank_project.custumer.CustumerRepository;
 import com.bank_project.exception.InvalidLoanStatusException;
@@ -24,20 +26,21 @@ public class LoanService {
     private final CustumerRepository custumerRepository;
     private final AccountRepository accountRepository;
     private final CurrentUserService currentUserService;
+    private final AuditLogService auditLogService;
 
     public LoanService(
             LoanRepository loanRepository,
             CustumerRepository custumerRepository,
             AccountRepository accountRepository,
-            CurrentUserService currentUserService
+            CurrentUserService currentUserService,
+            AuditLogService auditLogService
     ) {
         this.loanRepository = loanRepository;
         this.custumerRepository = custumerRepository;
         this.accountRepository = accountRepository;
         this.currentUserService = currentUserService;
+        this.auditLogService = auditLogService;
     }
-
-
 
     public Loan save(LoanRequest request) {
 
@@ -90,8 +93,6 @@ public class LoanService {
         return loanRepository.save(loan);
     }
 
-
-
     public List<Loan> findAll() {
 
         if (currentUserService.isAdmin()) {
@@ -103,8 +104,6 @@ public class LoanService {
         return loanRepository.findByCustomerId(customerId);
     }
 
-
-
     public Optional<Loan> findById(Long id) {
 
         if (currentUserService.isAdmin()) {
@@ -115,8 +114,6 @@ public class LoanService {
 
         return loanRepository.findByIdAndCustomerId(id, customerId);
     }
-
-
 
     @Transactional
     public Loan update(Long id, LoanUpdateRequest request) {
@@ -134,8 +131,6 @@ public class LoanService {
         return loanRepository.save(loan);
     }
 
-
-
     @Transactional
     public void delete(Long id) {
 
@@ -149,8 +144,6 @@ public class LoanService {
 
         loanRepository.delete(loan);
     }
-
-
 
     @Transactional
     public Loan approve(Long id) {
@@ -184,12 +177,17 @@ public class LoanService {
         loan.setStatus("APPROVED");
 
         accountRepository.save(account);
-        loanRepository.save(loan);
+        Loan savedLoan = loanRepository.save(loan);
 
-        return loan;
+        auditLogService.log(
+                "LOAN_APPROVED",
+                "LOAN",
+                savedLoan.getId().toString(),
+                "Loan approved for customer " + savedLoan.getCustomer().getId()
+        );
+
+        return savedLoan;
     }
-
-
 
     @Transactional
     public Loan reject(Long id) {
@@ -211,10 +209,17 @@ public class LoanService {
 
         loan.setStatus("REJECTED");
 
-        return loanRepository.save(loan);
+        Loan savedLoan = loanRepository.save(loan);
+
+        auditLogService.log(
+                "LOAN_REJECTED",
+                "LOAN",
+                savedLoan.getId().toString(),
+                "Loan rejected for customer " + savedLoan.getCustomer().getId()
+        );
+
+        return savedLoan;
     }
-
-
 
     private Loan findLoanForCurrentUserWithLock(Long id) {
 

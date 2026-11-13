@@ -5,6 +5,7 @@ import com.bank_project.account.aplication.AccountNumberGenerator;
 import com.bank_project.account.domain.Account;
 import com.bank_project.account.domain.AccountStatus;
 import com.bank_project.account.infra.AccountRepository;
+import com.bank_project.audit.AuditLogService;
 import com.bank_project.custumer.Custumer;
 import com.bank_project.custumer.CustumerRepository;
 import com.bank_project.exception.CpfAlreadyExistsException;
@@ -27,19 +28,22 @@ public class RegistrationService {
     private final AppUserRepository appUserRepository;
     private final AccountNumberGenerator accountNumberGenerator;
     private final PasswordEncoder passwordEncoder;
+    private final AuditLogService auditLogService;
 
     public RegistrationService(
             AccountRepository accountRepository,
             CustumerRepository custumerRepository,
             AppUserRepository appUserRepository,
             AccountNumberGenerator accountNumberGenerator,
-            PasswordEncoder passwordEncoder
+            PasswordEncoder passwordEncoder,
+            AuditLogService auditLogService
     ) {
         this.accountRepository = accountRepository;
         this.custumerRepository = custumerRepository;
         this.appUserRepository = appUserRepository;
         this.accountNumberGenerator = accountNumberGenerator;
         this.passwordEncoder = passwordEncoder;
+        this.auditLogService = auditLogService;
     }
 
     @Transactional
@@ -91,6 +95,14 @@ public class RegistrationService {
         );
 
         appUserRepository.save(appUser);
+
+        auditLogService.logForUser(
+                appUser,
+                "USER_REGISTERED",
+                "USER",
+                appUser.getId().toString(),
+                "User " + appUser.getUsername() + " registered successfully"
+        );
 
         return new RegistrationResponse(
                 "Registration completed successfully",

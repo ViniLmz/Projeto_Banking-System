@@ -1,9 +1,8 @@
-package com.bank_project.account;
+package com.bank_project.loan;
 
 
 import com.bank_project.account.domain.Account;
 import com.bank_project.custumer.Custumer;
-import com.bank_project.loan.*;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;

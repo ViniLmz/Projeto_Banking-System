@@ -16,6 +16,7 @@ import com.bank_project.exception.AccountNumberAlreadyExistsException;
 import com.bank_project.exception.BlockedAccountException;
 import com.bank_project.exception.InsufficientBalanceException;
 import com.bank_project.exception.ResourceNotFoundException;
+import com.bank_project.ledger.LedgerService;
 import com.bank_project.user.AppUser;
 import com.bank_project.user.CurrentUserService;
 import org.junit.jupiter.api.Test;
@@ -50,13 +51,14 @@ class AccountServiceTest {
     private CurrentUserService currentUserService;
 
     @Mock
+    private LedgerService ledgerService;
+    @Mock
     private AppUser appUser;
 
     @InjectMocks
     private AccountService accountService;
 
 
-    // DEPOSIT TESTS
 
     @Test
     void shouldDepositSuccessfully() {
@@ -66,7 +68,7 @@ class AccountServiceTest {
 
         Account account = createAccount(AccountStatus.ACTIVE, "1000.00");
 
-        when(accountRepository.findByIdAndCustomerId(1L, 1L))
+        when(accountRepository.findByIdAndCustomerIdWithLock(1L, 1L))
                 .thenReturn(Optional.of(account));
 
         TransactionRequest request =
@@ -80,6 +82,11 @@ class AccountServiceTest {
         assertEquals(new BigDecimal("1500.00"), result.getBalance());
 
         verify(accountRepository).save(account);
+
+        verify(ledgerService).recordDeposit(
+                account,
+                new BigDecimal("500.00")
+        );
 
         verify(auditLogService).log(
                 "ACCOUNT_DEPOSIT",
@@ -97,7 +104,7 @@ class AccountServiceTest {
 
         Account account = createAccount(AccountStatus.BLOCKED, "1000.00");
 
-        when(accountRepository.findByIdAndCustomerId(1L, 1L))
+        when(accountRepository.findByIdAndCustomerIdWithLock(1L, 1L))
                 .thenReturn(Optional.of(account));
 
         TransactionRequest request =
@@ -118,7 +125,7 @@ class AccountServiceTest {
         authenticateAsCustomer();
         when(currentUserService.getCurrentCustomerId()).thenReturn(1L);
 
-        when(accountRepository.findByIdAndCustomerId(1L, 1L))
+        when(accountRepository.findByIdAndCustomerIdWithLock(1L, 1L))
                 .thenReturn(Optional.empty());
 
         TransactionRequest request =
@@ -141,7 +148,7 @@ class AccountServiceTest {
 
         Account account = createAccount(AccountStatus.ACTIVE, "1000.00");
 
-        when(accountRepository.findByIdAndCustomerId(1L, 1L))
+        when(accountRepository.findByIdAndCustomerIdWithLock(1L, 1L))
                 .thenReturn(Optional.of(account));
 
         TransactionRequest request =
@@ -178,7 +185,7 @@ class AccountServiceTest {
 
         Account account = createAccount(AccountStatus.ACTIVE, "1000.00");
 
-        when(accountRepository.findByIdAndCustomerId(1L, 1L))
+        when(accountRepository.findByIdAndCustomerIdWithLock(1L, 1L))
                 .thenReturn(Optional.of(account));
 
         TransactionRequest request =
@@ -207,7 +214,6 @@ class AccountServiceTest {
     }
 
 
-    // WITHDRAW TESTS
 
     @Test
     void shouldWithdrawSuccessfully() {
@@ -217,7 +223,7 @@ class AccountServiceTest {
 
         Account account = createAccount(AccountStatus.ACTIVE, "1000.00");
 
-        when(accountRepository.findByIdAndCustomerId(1L, 1L))
+        when(accountRepository.findByIdAndCustomerIdWithLock(1L, 1L))
                 .thenReturn(Optional.of(account));
 
         TransactionRequest request =
@@ -231,6 +237,11 @@ class AccountServiceTest {
         assertEquals(new BigDecimal("500.00"), result.getBalance());
 
         verify(accountRepository).save(account);
+
+        verify(ledgerService).recordWithdrawal(
+                account,
+                new BigDecimal("500.00")
+        );
 
         verify(auditLogService).log(
                 "ACCOUNT_WITHDRAWAL",
@@ -248,7 +259,7 @@ class AccountServiceTest {
 
         Account account = createAccount(AccountStatus.BLOCKED, "1000.00");
 
-        when(accountRepository.findByIdAndCustomerId(1L, 1L))
+        when(accountRepository.findByIdAndCustomerIdWithLock(1L, 1L))
                 .thenReturn(Optional.of(account));
 
         TransactionRequest request =
@@ -271,7 +282,7 @@ class AccountServiceTest {
 
         Account account = createAccount(AccountStatus.ACTIVE, "500.00");
 
-        when(accountRepository.findByIdAndCustomerId(1L, 1L))
+        when(accountRepository.findByIdAndCustomerIdWithLock(1L, 1L))
                 .thenReturn(Optional.of(account));
 
         TransactionRequest request =
@@ -294,7 +305,7 @@ class AccountServiceTest {
 
         Account account = createAccount(AccountStatus.ACTIVE, "5000.00");
 
-        when(accountRepository.findByIdAndCustomerId(1L, 1L))
+        when(accountRepository.findByIdAndCustomerIdWithLock(1L, 1L))
                 .thenReturn(Optional.of(account));
 
         TransactionRequest request =
@@ -329,7 +340,7 @@ class AccountServiceTest {
         authenticateAsCustomer();
         when(currentUserService.getCurrentCustomerId()).thenReturn(1L);
 
-        when(accountRepository.findByIdAndCustomerId(1L, 1L))
+        when(accountRepository.findByIdAndCustomerIdWithLock(1L, 1L))
                 .thenReturn(Optional.empty());
 
         TransactionRequest request =
@@ -352,7 +363,7 @@ class AccountServiceTest {
 
         Account account = createAccount(AccountStatus.ACTIVE, "1000.00");
 
-        when(accountRepository.findByIdAndCustomerId(1L, 1L))
+        when(accountRepository.findByIdAndCustomerIdWithLock(1L, 1L))
                 .thenReturn(Optional.of(account));
 
         TransactionRequest request =
@@ -864,7 +875,6 @@ class AccountServiceTest {
     }
 
 
-    // HELPERS
 
     private void authenticateAsCustomer() {
 

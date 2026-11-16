@@ -14,6 +14,7 @@ import com.bank_project.exception.AccountNumberAlreadyExistsException;
 import com.bank_project.exception.BlockedAccountException;
 import com.bank_project.exception.InsufficientBalanceException;
 import com.bank_project.exception.ResourceNotFoundException;
+import com.bank_project.ledger.LedgerService;
 import com.bank_project.user.CurrentUserService;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
@@ -26,17 +27,19 @@ import java.util.Optional;
 @Service
 public class AccountService {
 
+    private final LedgerService ledgerService;
     private final AccountRepository accountRepository;
     private final CustumerRepository custumerRepository;
     private final CurrentUserService currentUserService;
     private final AuditLogService auditLogService;
 
     public AccountService(
-            AccountRepository accountRepository,
+            LedgerService ledgerService, AccountRepository accountRepository,
             CustumerRepository custumerRepository,
             CurrentUserService currentUserService,
             AuditLogService auditLogService
     ) {
+        this.ledgerService = ledgerService;
         this.accountRepository = accountRepository;
         this.custumerRepository = custumerRepository;
         this.currentUserService = currentUserService;
@@ -57,6 +60,7 @@ public class AccountService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Account not found with id: " + id));
     }
+
 
     public List<Account> findAll() {
 
@@ -172,7 +176,7 @@ public class AccountService {
     @Transactional
     public Account deposit(Long id, TransactionRequest request) {
 
-        Account account = findAccountForCurrentUser(id);
+        Account account = findAccountForCurrentUserWithLock(id);
 
         if (account.getStatus() == AccountStatus.BLOCKED) {
             throw new BlockedAccountException("This account is currently blocked");
@@ -183,6 +187,7 @@ public class AccountService {
         );
 
         Account savedAccount = accountRepository.save(account);
+        ledgerService.recordDeposit(savedAccount, request.amount());
 
         auditLogService.log(
                 "ACCOUNT_DEPOSIT",
@@ -200,7 +205,8 @@ public class AccountService {
     @Transactional
     public Account withdraw(Long id, TransactionRequest request) {
 
-        Account account = findAccountForCurrentUser(id);
+        Account account = findAccountForCurrentUserWithLock(id);
+
 
         if (account.getStatus() == AccountStatus.BLOCKED) {
             throw new BlockedAccountException("This account is currently blocked");
@@ -215,6 +221,7 @@ public class AccountService {
         );
 
         Account savedWithdraw = accountRepository.save(account);
+        ledgerService.recordWithdrawal(savedWithdraw, request.amount());
 
         auditLogService.log(
                 "ACCOUNT_WITHDRAWAL",
@@ -249,5 +256,23 @@ public class AccountService {
 
         return account;
     }
+
+
+
+    private Account findAccountForCurrentUserWithLock(Long id) {
+
+        if (currentUserService.isAdmin()) {
+            return accountRepository.findByIdWithLock(id)
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Account not found with id: " + id));
+        }
+
+        Long customerId = currentUserService.getCurrentCustomerId();
+
+        return accountRepository.findByIdAndCustomerIdWithLock(id, customerId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Account not found with id: " + id));
+    }
+
 
 }

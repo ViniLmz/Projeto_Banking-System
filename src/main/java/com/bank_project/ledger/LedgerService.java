@@ -9,6 +9,8 @@ import com.bank_project.transfer.Transfer;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -53,6 +55,7 @@ public class LedgerService {
     }
 
 
+
     @Transactional(readOnly = true)
     public List<LedgerEntryResponse> findByAccount(Long accountId) {
 
@@ -76,7 +79,42 @@ public class LedgerService {
                 .map(ledgerEntryMapper::toResponse)
                 .toList();
     }
+    @Transactional
+    public void recordDeposit(Account account, BigDecimal amount) {
+        LedgerEntry entry = new LedgerEntry(
+                account,
+                null,
+                EntryType.CREDIT,
+                amount
+        );
 
+        ledgerEntryRepository.save(entry);
+    }
+
+    @Transactional
+    public void recordWithdrawal(Account account, BigDecimal amount) {
+        LedgerEntry entry = new LedgerEntry(
+                account,
+                null,
+                EntryType.DEBIT,
+                amount
+        );
+
+        ledgerEntryRepository.save(entry);
+    }
+
+    @Transactional(readOnly = true)
+    public BigDecimal sumAmountByAccountAndTypeSince(
+            Long accountId,
+            EntryType type,
+            LocalDateTime startDate
+    ) {
+        return ledgerEntryRepository.sumAmountByAccountAndTypeSince(
+                accountId,
+                type,
+                startDate
+        );
+    }
 
 
 }

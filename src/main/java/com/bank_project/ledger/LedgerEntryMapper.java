@@ -11,7 +11,7 @@ public class LedgerEntryMapper {
                 entry.getId(),
                 entry.getAccount().getId(),
                 entry.getAccount().getAccountNumber(),
-                entry.getTransfer().getId(),
+                entry.getTransfer() != null ? entry.getTransfer().getId() : null,
                 entry.getType(),
                 entry.getAmount(),
                 entry.getCreatedAt()

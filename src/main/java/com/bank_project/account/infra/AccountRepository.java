@@ -11,7 +11,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 
-public interface AccountRepository extends  JpaRepository<Account, Long> {
+public interface    AccountRepository extends  JpaRepository<Account, Long> {
     boolean existsByAccountNumber(String accountNumber);
     Optional<Account> findByIdAndCustomerId(Long accountId, Long customerId);
     List<Account> findAllByCustomerId(Long customerId);
